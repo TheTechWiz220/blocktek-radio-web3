@@ -1,5 +1,5 @@
 import { Card } from "@/components/ui/card";
-import { Target, Eye, Users, Zap } from "lucide-react";
+import { Target, Eye, Users, Zap, Twitter } from "lucide-react";
 
 const About = () => {
   const values = [
@@ -58,6 +58,48 @@ const About = () => {
               </Card>
             );
           })}
+        </div>
+
+        <div className="mt-20 text-center">
+          <h3 className="text-3xl md:text-4xl font-bold mb-12">
+            Meet the <span className="text-gradient">Founders</span>
+          </h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto">
+            <Card className="p-8 bg-card/50 backdrop-blur-sm border-primary/20 hover:border-primary/50 transition-all duration-300 hover:glow-purple group">
+              <div className="space-y-4">
+                <div className="w-16 h-16 rounded-full bg-gradient-primary flex items-center justify-center mx-auto group-hover:scale-110 transition-transform">
+                  <Twitter className="w-8 h-8 text-primary-foreground" />
+                </div>
+                <h4 className="text-2xl font-bold">Co-Founder</h4>
+                <a 
+                  href="https://x.com/thetechwiz220" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="text-primary hover:text-primary/80 transition-colors inline-flex items-center gap-2 text-lg"
+                >
+                  @thetechwiz220
+                  <Twitter className="w-4 h-4" />
+                </a>
+              </div>
+            </Card>
+            <Card className="p-8 bg-card/50 backdrop-blur-sm border-primary/20 hover:border-primary/50 transition-all duration-300 hover:glow-purple group">
+              <div className="space-y-4">
+                <div className="w-16 h-16 rounded-full bg-gradient-primary flex items-center justify-center mx-auto group-hover:scale-110 transition-transform">
+                  <Twitter className="w-8 h-8 text-primary-foreground" />
+                </div>
+                <h4 className="text-2xl font-bold">Co-Founder</h4>
+                <a 
+                  href="https://x.com/stanmunyasia" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="text-primary hover:text-primary/80 transition-colors inline-flex items-center gap-2 text-lg"
+                >
+                  @stanmunyasia
+                  <Twitter className="w-4 h-4" />
+                </a>
+              </div>
+            </Card>
+          </div>
         </div>
       </div>
     </section>
