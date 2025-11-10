@@ -6,14 +6,15 @@ const Navigation = () => {
   const [isOpen, setIsOpen] = useState(false);
 
   const navLinks = [
-    { name: "Home", href: "#home" },
-    { name: "About", href: "#about" },
-    { name: "Live Stream", href: "#live" },
-    { name: "Crypto Tracker", href: "#crypto" },
-    { name: "NFT Zone", href: "#nft" },
-    { name: "Education", href: "#education" },
-    { name: "Advertise", href: "#advertise" },
-    { name: "Community", href: "#community" },
+    { name: "Home", href: "/#home" },
+    { name: "About", href: "/#about" },
+    { name: "Team", href: "/team" },
+    { name: "Live Stream", href: "/#live" },
+    { name: "Crypto Tracker", href: "/#crypto" },
+    { name: "NFT Zone", href: "/#nft" },
+    { name: "Education", href: "/#education" },
+    { name: "Advertise", href: "/#advertise" },
+    { name: "Community", href: "/#community" },
   ];
 
   return (
