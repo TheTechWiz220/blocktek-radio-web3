@@ -2,24 +2,11 @@ import Navigation from "@/components/Navigation";
 import Footer from "@/components/Footer";
 import { Card } from "@/components/ui/card";
 import { Twitter, Linkedin, Github, Globe } from "lucide-react";
+import { FOUNDERS } from "@/data/founders";
 
 const Team = () => {
-  const founders = [
-    {
-      name: "The Tech Wiz",
-      role: "Co-Founder & CEO",
-      bio: "Blockchain evangelist driving Web3 adoption across Africa",
-      twitter: "thetechwiz220",
-      image: "https://api.dicebear.com/7.x/avataaars/svg?seed=techwiz"
-    },
-    {
-      name: "Stan Munyasia",
-      role: "Co-Founder & CTO",
-      bio: "Technical architect building the future of decentralized radio",
-      twitter: "stanmunyasia",
-      image: "https://api.dicebear.com/7.x/avataaars/svg?seed=stan"
-    }
-  ];
+  // Use the shared FOUNDERS array for the Founders section
+  const founders = FOUNDERS;
 
   const teamMembers = [
     {
@@ -146,7 +133,7 @@ const Team = () => {
         </div>
         <div>
           <h3 className="text-xl font-bold mb-1">{person.name}</h3>
-          <p className="text-primary text-sm font-medium mb-2">{person.role}</p>
+          <p className="text-primary text-sm font-medium mb-2">{person.role || person.role}</p>
           <p className="text-muted-foreground text-sm">{person.bio}</p>
         </div>
         <div className="flex gap-2 pt-2">
@@ -184,7 +171,11 @@ const Team = () => {
                   <TeamCard
                     person={founder}
                     socialLinks={
-                      <SocialLink platform="twitter" handle={founder.twitter} />
+                      <>  
+                        {founder.twitter && <SocialLink platform="twitter" handle={founder.twitter} url={founder.xUrl} />}
+                        {founder.linkedin && <SocialLink platform="linkedin" handle={founder.linkedin} url={founder.linkedin} />}
+                        {founder.website && <SocialLink platform="website" url={founder.website} />}
+                      </>
                     }
                   />
                 </div>
@@ -205,7 +196,7 @@ const Team = () => {
                   <TeamCard
                     person={member}
                     socialLinks={
-                      <>
+                      <>  
                         {member.twitter && <SocialLink platform="twitter" handle={member.twitter} />}
                         {member.linkedin && <SocialLink platform="linkedin" handle={member.linkedin} />}
                         {member.github && <SocialLink platform="github" handle={member.github} />}
@@ -251,7 +242,7 @@ const Team = () => {
                   <TeamCard
                     person={advisor}
                     socialLinks={
-                      <>
+                      <>  
                         {advisor.twitter && <SocialLink platform="twitter" handle={advisor.twitter} />}
                         {advisor.linkedin && <SocialLink platform="linkedin" handle={advisor.linkedin} />}
                         {advisor.website && <SocialLink platform="website" handle={advisor.website} />}
