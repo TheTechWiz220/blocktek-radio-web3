@@ -20,7 +20,7 @@ const Navigation = () => {
     { name: "Crypto Tracker", href: "/#crypto" },
     { name: "NFT Zone", href: "/#nft" },
     { name: "Education", href: "/#education" },
-    { name: "Advertise", href: "/#advertise" },
+    { name: "Dashboard", href: "/#dashboard" },
     { name: "Community", href: "/#community" },
   ];
 
