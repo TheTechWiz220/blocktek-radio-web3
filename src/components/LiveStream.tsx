@@ -9,8 +9,7 @@ const LiveStream = () => {
   const [isLoading, setIsLoading] = useState(false);
   const audioRef = useRef<HTMLAudioElement>(null);
 
-  // REPLACE THIS WITH YOUR ACTUAL STREAM URL
-  const STREAM_URL = "https://audius.co/tracks/12345/stream"; // Example: Icecast, Shoutcast, or HLS
+  const STREAM_URL = "/stream-audio.mp3";
 
   const upcomingShows = [
     { time: "10:00 AM", title: "Blockchain Morning Brief", host: "DJ CryptoKen" },
