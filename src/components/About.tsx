@@ -100,47 +100,47 @@ const About = () => {
                     </div>
                   </div>
 
-                  <div className="flex items-center justify-center gap-4 mt-2">
+                  <div className="flex flex-wrap items-center justify-center gap-3 mt-2">
                     <a
                       href={f.xUrl}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="inline-flex items-center gap-2 text-primary hover:text-primary/80 transition-colors"
+                      className="inline-flex items-center gap-1.5 text-primary hover:text-primary/80 transition-colors text-sm"
                       aria-label={`Visit ${f.name}'s X (Twitter)`}
                     >
-                      <Twitter className="w-5 h-5" />
-                      <span className="hidden sm:inline">{f.handle}</span>
+                      <Twitter className="w-4 h-4" />
+                      <span className="hidden lg:inline truncate">{f.handle}</span>
                     </a>
 
                     <a
                       href={f.linkedin}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="inline-flex items-center gap-2 text-primary hover:text-primary/80 transition-colors"
+                      className="inline-flex items-center gap-1.5 text-primary hover:text-primary/80 transition-colors text-sm"
                       aria-label={`Visit ${f.name}'s LinkedIn`}
                     >
-                      <Linkedin className="w-5 h-5" />
-                      <span className="hidden sm:inline">LinkedIn</span>
+                      <Linkedin className="w-4 h-4" />
+                      <span className="hidden lg:inline">LinkedIn</span>
                     </a>
 
                     <a
                       href={f.website}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="inline-flex items-center gap-2 text-primary hover:text-primary/80 transition-colors"
+                      className="inline-flex items-center gap-1.5 text-primary hover:text-primary/80 transition-colors text-sm"
                       aria-label={`Visit ${f.name}'s website`}
                     >
-                      <Globe className="w-5 h-5" />
-                      <span className="hidden sm:inline">Website</span>
+                      <Globe className="w-4 h-4" />
+                      <span className="hidden lg:inline">Website</span>
                     </a>
 
                     <a
                       href={`mailto:${f.email}`}
-                      className="inline-flex items-center gap-2 text-primary hover:text-primary/80 transition-colors"
+                      className="inline-flex items-center gap-1.5 text-primary hover:text-primary/80 transition-colors text-sm"
                       aria-label={`Email ${f.name}`}
                     >
-                      <Mail className="w-5 h-5" />
-                      <span className="hidden sm:inline">Email</span>
+                      <Mail className="w-4 h-4" />
+                      <span className="hidden lg:inline">Email</span>
                     </a>
                   </div>
                 </div>
