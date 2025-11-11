@@ -75,11 +75,14 @@ const About = () => {
                 className="p-8 bg-card/50 backdrop-blur-sm border-primary/20 hover:border-primary/50 transition-all duration-300 hover:glow-purple group"
               >
                 <div className="space-y-4 text-center">
-                  <div className="w-20 h-20 rounded-full mx-auto overflow-hidden border-2 border-primary/30 group-hover:border-primary/60 group-hover:scale-110 transition-all">
+                  <div className="w-20 h-20 rounded-full mx-auto overflow-hidden border-2 border-primary/30 group-hover:border-primary/60 group-hover:scale-110 transition-all bg-gradient-primary">
                     <img 
                       src={f.image} 
                       alt={f.name}
                       className="w-full h-full object-cover"
+                      onError={(e) => {
+                        e.currentTarget.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(f.name)}&background=7c3aed&color=fff&size=128`;
+                      }}
                     />
                   </div>
 

@@ -127,7 +127,10 @@ const Team = () => {
           <img
             src={person.image}
             alt={person.name}
-            className="w-24 h-24 rounded-full border-2 border-primary/30 group-hover:border-primary/60 transition-all"
+            className="w-24 h-24 rounded-full border-2 border-primary/30 group-hover:border-primary/60 transition-all object-cover bg-gradient-primary"
+            onError={(e) => {
+              e.currentTarget.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(person.name)}&background=7c3aed&color=fff&size=128`;
+            }}
           />
           <div className="absolute inset-0 rounded-full bg-gradient-primary opacity-0 group-hover:opacity-20 transition-opacity" />
         </div>
