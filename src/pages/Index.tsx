@@ -20,7 +20,6 @@ const Index = () => {
         <CryptoTracker />
         <NFTZone />
         <Education />
-        <Advertise />
         <Community />
       </main>
       <Footer />
