@@ -1,5 +1,6 @@
 import { Card } from "@/components/ui/card";
 import { Target, Eye, Users, Zap, Twitter, Globe, Mail, MapPin, Linkedin } from "lucide-react";
+import { FOUNDERS } from "@/data/founders";
 
 const About = () => {
   const values = [
@@ -25,31 +26,7 @@ const About = () => {
     }
   ];
 
-  // Replace the placeholder values below with real names, bios, and links.
-  const founders = [
-    {
-      name: "The Tech Wiz",
-      title: "Co-Founder & CTO",
-      handle: "@thetechwiz220",
-      xUrl: "https://x.com/thetechwiz220",
-      linkedin: "https://www.linkedin.com/in/thetechwiz220",
-      website: "https://thetechwiz220.fun",
-      email: "hello@thetechwiz.dev",
-      location: "Banjul, The Gambia",
-      bio: "Blockchain developer and educator focused on building infrastructure and tools that make Web3 accessible. Leads technical strategy, product architecture, and developer community initiatives."
-    },
-    {
-      name: "Stan Munyasia",
-      title: "Co-Founder & Head of Content",
-      handle: "@stanmunyasia",
-      xUrl: "https://x.com/stanmunyasia",
-      linkedin: "https://www.linkedin.com/in/stanmunyasia",
-      website: "https://stanmunyasia.com",
-      email: "contact@stanmunyasia.com",
-      location: "Nairobi, Kenya",
-      bio: "Content strategist and host with a passion for translating complex blockchain topics into engaging stories. Manages editorial, partnerships, and community programming."
-    }
-  ];
+  const founders = FOUNDERS;
 
   return (
     <section id="about" className="py-20 md:py-32 relative">
@@ -98,13 +75,17 @@ const About = () => {
                 className="p-8 bg-card/50 backdrop-blur-sm border-primary/20 hover:border-primary/50 transition-all duration-300 hover:glow-purple group"
               >
                 <div className="space-y-4 text-center">
-                  <div className="w-20 h-20 rounded-full bg-gradient-primary flex items-center justify-center mx-auto group-hover:scale-110 transition-transform">
-                    <Twitter className="w-10 h-10 text-primary-foreground" />
+                  <div className="w-20 h-20 rounded-full mx-auto overflow-hidden border-2 border-primary/30 group-hover:border-primary/60 group-hover:scale-110 transition-all">
+                    <img 
+                      src={f.image} 
+                      alt={f.name}
+                      className="w-full h-full object-cover"
+                    />
                   </div>
 
                   <div>
                     <h4 className="text-2xl font-bold">{f.name}</h4>
-                    <p className="text-sm text-muted-foreground">{f.title}</p>
+                    <p className="text-sm text-muted-foreground">{f.role}</p>
                   </div>
 
                   <p className="text-muted-foreground leading-relaxed text-sm">{f.bio}</p>

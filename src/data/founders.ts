@@ -24,7 +24,7 @@ export const FOUNDERS: Founder[] = [
     email: "hello@thetechwiz.dev",
     location: "Banjul, The Gambia",
     bio: "Blockchain developer and educator focused on building infrastructure and tools that make Web3 accessible. Leads technical strategy, product architecture, and developer community initiatives.",
-    image: "https://api.dicebear.com/7.x/avataaars/svg?seed=techwiz"
+    image: "https://unavatar.io/twitter/thetechwiz220"
   },
   {
     name: "Stan Munyasia",
@@ -37,6 +37,6 @@ export const FOUNDERS: Founder[] = [
     email: "contact@stanmunyasia.com",
     location: "Nairobi, Kenya",
     bio: "Content strategist and host with a passion for translating complex blockchain topics into engaging stories. Manages editorial, partnerships, and community programming.",
-    image: "https://api.dicebear.com/7.x/avataaars/svg?seed=stan"
+    image: "https://unavatar.io/twitter/stanmunyasia"
   }
 ];
