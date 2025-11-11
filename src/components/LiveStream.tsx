@@ -10,7 +10,7 @@ const LiveStream = () => {
   const audioRef = useRef<HTMLAudioElement>(null);
 
   // REPLACE THIS WITH YOUR ACTUAL STREAM URL
-  const STREAM_URL = "https://icecast.blocktekradio.com/stream"; // Example: Icecast, Shoutcast, or HLS
+  const STREAM_URL = "https://audius.co/tracks/12345/stream"; // Example: Icecast, Shoutcast, or HLS
 
   const upcomingShows = [
     { time: "10:00 AM", title: "Blockchain Morning Brief", host: "DJ CryptoKen" },
