@@ -1,6 +1,7 @@
 import Navigation from "@/components/Navigation";
 import Hero from "@/components/Hero";
 import About from "@/components/About";
+import Timeline from "@/components/Timeline";
 import LiveStream from "@/components/LiveStream";
 import CryptoTracker from "@/components/CryptoTracker";
 import NFTZone from "@/components/NFTZone";
@@ -16,6 +17,7 @@ const Index = () => {
       <main>
         <Hero />
         <About />
+        <Timeline />
         <LiveStream />
         <CryptoTracker />
         <NFTZone />
