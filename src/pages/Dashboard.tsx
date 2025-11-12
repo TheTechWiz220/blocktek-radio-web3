@@ -6,7 +6,7 @@ import { useNavigate } from "react-router-dom";
 import Navigation from "@/components/Navigation";
 
 const Dashboard = () => {
-  const { account, disconnect, isConnected, connectWallet } = useWeb3();
+  const { account, disconnect, isConnected, connectWallet, isConnecting } = useWeb3();
   const navigate = useNavigate();
 
   // NOT CONNECTED → Show lock screen
@@ -18,8 +18,8 @@ const Dashboard = () => {
           <h2 className="text-2xl font-bold mb-2">Wallet Required</h2>
           <p className="text-muted-foreground mb-6">Connect your wallet to access your dashboard.</p>
           <div className="space-y-3">
-            <Button onClick={connectWallet} className="w-full">
-              Connect Wallet
+            <Button onClick={connectWallet} className="w-full" disabled={isConnecting}>
+              {isConnecting ? "Connecting..." : "Connect Wallet"}
             </Button>
             <Button onClick={() => navigate("/#live")} variant="outline" className="w-full">
               Go to Live Stream
