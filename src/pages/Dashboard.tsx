@@ -1,22 +1,22 @@
-'use client';
-
+// pages/dashboard.tsx
 import { useWeb3 } from "@/context/Web3Context";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Wallet, Headphones, Trophy, DollarSign, Settings, LogOut } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { Wallet, Headphones, Trophy, DollarSign, Settings, LogOut, Lock } from "lucide-react";
+import { useRouter } from "next/router";
 
 const Dashboard = () => {
   const { account, disconnect, isConnected } = useWeb3();
   const router = useRouter();
 
+  // NOT CONNECTED → Show lock screen
   if (!isConnected || !account) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center p-4">
-        <Card className="p-8 text-center max-w-md">
-          <Wallet className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
-          <h2 className="text-2xl font-bold mb-2">Connect to View Dashboard</h2>
-          <p className="text-muted-foreground mb-6">Your Web3 control center awaits.</p>
+      <div className="min-h-screen bg-background flex items-center justify-center p-4 pt-20">
+        <Card className="p-8 text-center max-w-md w-full">
+          <Lock className="w-16 h-16 mx-auto mb-4 text-muted-foreground" />
+          <h2 className="text-2xl font-bold mb-2">Wallet Required</h2>
+          <p className="text-muted-foreground mb-6">Connect your wallet to access your dashboard.</p>
           <Button onClick={() => router.push("/#live")} className="w-full">
             Go to Live Stream
           </Button>
@@ -75,7 +75,7 @@ const Dashboard = () => {
         </div>
 
         {/* Recent Activity */}
-        <Card className="p-6 bg-card/50 backdrop-blur-sm border-primary/20">
+        <Card className="p-6 bg-card/50 backdrop-blur-sm border-primary/20 mb-8">
           <h2 className="text-xl font-bold mb-4">Recent Streams</h2>
           <div className="space-y-3">
             {recentStreams.map((stream, i) => (
@@ -90,8 +90,8 @@ const Dashboard = () => {
           </div>
         </Card>
 
-        {/* NFT Collection Preview */}
-        <div className="mt-8">
+        {/* NFT Collection */}
+        <div>
           <h2 className="text-xl font-bold mb-4">Your NFT Collection</h2>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             {[1, 2, 3].map((i) => (
