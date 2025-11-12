@@ -1,13 +1,33 @@
 import { useWeb3 } from "@/context/Web3Context";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Headphones, Trophy, DollarSign, Settings, LogOut, Lock } from "lucide-react";
+import { Headphones, Trophy, Wallet, Settings, LogOut, Lock } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import Navigation from "@/components/Navigation";
+import { useState, useEffect } from "react";
+import { ethers } from "ethers";
 
 const Dashboard = () => {
   const { account, disconnect, isConnected, connectWallet, isConnecting } = useWeb3();
   const navigate = useNavigate();
+  const [ethBalance, setEthBalance] = useState<string>("0.00");
+
+  useEffect(() => {
+    const fetchBalance = async () => {
+      if (account && (window as any).ethereum) {
+        try {
+          const provider = new ethers.BrowserProvider((window as any).ethereum);
+          const balance = await provider.getBalance(account);
+          const formatted = parseFloat(ethers.formatEther(balance)).toFixed(4);
+          setEthBalance(formatted);
+        } catch (error) {
+          console.error("Failed to fetch balance:", error);
+        }
+      }
+    };
+    
+    fetchBalance();
+  }, [account]);
 
   // NOT CONNECTED → Show lock screen
   if (!isConnected || !account) {
@@ -35,7 +55,7 @@ const Dashboard = () => {
   const stats = [
     { label: "Listening Time", value: "48h 12m", icon: Headphones },
     { label: "NFTs Owned", value: "3", icon: Trophy },
-    { label: "Earnings", value: "$127.50", icon: DollarSign },
+    { label: "ETH Balance", value: `${ethBalance} ETH`, icon: Wallet },
   ];
 
   const recentStreams = [
