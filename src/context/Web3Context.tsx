@@ -22,15 +22,15 @@ export const Web3Provider = ({ children }: { children: ReactNode }) => {
   const TARGET_CHAIN = "0x1"; // Ethereum Mainnet
 
   const connectWallet = async () => {
-    if (!window.ethereum) {
+    if (!(window as any).ethereum) {
       alert("Install MetaMask! https://metamask.io");
       return;
     }
 
     setIsConnecting(true);
     try {
-      await window.ethereum.request({ method: "eth_requestAccounts" });
-      const provider = new ethers.BrowserProvider(window.ethereum);
+      await (window as any).ethereum.request({ method: "eth_requestAccounts" });
+      const provider = new ethers.BrowserProvider((window as any).ethereum);
       const signer = await provider.getSigner();
       const address = await signer.getAddress();
       setAccount(address);
@@ -40,7 +40,7 @@ export const Web3Provider = ({ children }: { children: ReactNode }) => {
       if (chainId !== TARGET_CHAIN) {
         setIsWrongNetwork(true);
         try {
-          await window.ethereum.request({
+          await (window as any).ethereum.request({
             method: "wallet_switchEthereumChain",
             params: [{ chainId: TARGET_CHAIN }],
           });
@@ -65,19 +65,19 @@ export const Web3Provider = ({ children }: { children: ReactNode }) => {
   };
 
   useEffect(() => {
-    if (!window.ethereum) return;
+    if (!(window as any).ethereum) return;
 
     const handleAccounts = (accounts: string[]) => {
       setAccount(accounts[0] || null);
     };
 
-    window.ethereum.on("accountsChanged", handleAccounts);
-    window.ethereum.on("chainChanged", () => window.location.reload());
+    (window as any).ethereum.on("accountsChanged", handleAccounts);
+    (window as any).ethereum.on("chainChanged", () => window.location.reload());
 
     // Auto-connect if already authorized
     (async () => {
       try {
-        const provider = new ethers.BrowserProvider(window.ethereum);
+        const provider = new ethers.BrowserProvider((window as any).ethereum);
         const accounts = await provider.listAccounts();
         if (accounts.length > 0) {
           setAccount(accounts[0].address);
@@ -88,7 +88,7 @@ export const Web3Provider = ({ children }: { children: ReactNode }) => {
     })();
 
     return () => {
-      window.ethereum.removeListener("accountsChanged", handleAccounts);
+      (window as any).ethereum.removeListener("accountsChanged", handleAccounts);
     };
   }, []);
 

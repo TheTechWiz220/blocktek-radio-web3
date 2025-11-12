@@ -1,13 +1,13 @@
-// pages/dashboard.tsx
 import { useWeb3 } from "@/context/Web3Context";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Wallet, Headphones, Trophy, DollarSign, Settings, LogOut, Lock } from "lucide-react";
-import { useRouter } from "next/router";
+import { Headphones, Trophy, DollarSign, Settings, LogOut, Lock } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import Navigation from "@/components/Navigation";
 
 const Dashboard = () => {
   const { account, disconnect, isConnected } = useWeb3();
-  const router = useRouter();
+  const navigate = useNavigate();
 
   // NOT CONNECTED → Show lock screen
   if (!isConnected || !account) {
@@ -17,7 +17,7 @@ const Dashboard = () => {
           <Lock className="w-16 h-16 mx-auto mb-4 text-muted-foreground" />
           <h2 className="text-2xl font-bold mb-2">Wallet Required</h2>
           <p className="text-muted-foreground mb-6">Connect your wallet to access your dashboard.</p>
-          <Button onClick={() => router.push("/#live")} className="w-full">
+          <Button onClick={() => navigate("/#live")} className="w-full">
             Go to Live Stream
           </Button>
         </Card>
@@ -40,8 +40,9 @@ const Dashboard = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-background pt-20">
-      <div className="container mx-auto px-4 py-8">
+    <div className="min-h-screen bg-background">
+      <Navigation />
+      <div className="container mx-auto px-4 py-8 pt-24">
         {/* Header */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
           <div>
