@@ -1,5 +1,7 @@
 import { Card } from "@/components/ui/card";
 import { TrendingUp, TrendingDown, Bitcoin, Coins } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Button } from "@/components/ui/button";
 import { useQuery } from "@tanstack/react-query";
 
 type CoinId = "bitcoin" | "ethereum" | "lisk" | "cardano" | "solana" | "polygon";
@@ -22,7 +24,9 @@ const fetchPrices = async () => {
 };
 
 const CryptoTracker = () => {
-  const { data, isLoading, isError } = useQuery(["cryptoPrices"], fetchPrices, {
+  const { data, isLoading, isError, refetch } = useQuery({
+    queryKey: ["cryptoPrices"],
+    queryFn: fetchPrices,
     refetchInterval: 30_000,
     staleTime: 15_000,
   });
@@ -43,56 +47,86 @@ const CryptoTracker = () => {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {COINS.map((coin, index) => {
-            const Icon = coin.icon;
-            const coinData = data?.[coin.id];
-            const price = coinData?.usd;
-            const change = coinData?.usd_24h_change;
-            const isUp = typeof change === "number" ? change >= 0 : true;
+          {isLoading ? (
+            <>
+              {COINS.map((coin, index) => (
+                <Card
+                  key={`skeleton-${coin.symbol}`}
+                  className="p-6 bg-card/50 backdrop-blur-sm border-primary/20 transition-all group"
+                  style={{ animationDelay: `${index * 100}ms` }}
+                >
+                  <div className="flex items-start justify-between mb-4">
+                    <div className="flex items-center gap-3">
+                      <Skeleton className="w-12 h-12 rounded-full" />
+                      <div className="flex flex-col gap-2">
+                        <Skeleton className="w-40 h-5 rounded" />
+                        <Skeleton className="w-24 h-4 rounded" />
+                      </div>
+                    </div>
+                    <Skeleton className="w-5 h-5 rounded-full" />
+                  </div>
+                  <div className="space-y-1">
+                    <Skeleton className="w-32 h-8 rounded" />
+                    <Skeleton className="w-20 h-4 rounded" />
+                  </div>
+                </Card>
+              ))}
+            </>
+          ) : (
+            <>
+              {COINS.map((coin, index) => {
+                const Icon = coin.icon;
+                const coinData = data?.[coin.id];
+                const price = coinData?.usd;
+                const change = coinData?.usd_24h_change;
+                const isUp = typeof change === "number" ? change >= 0 : true;
 
-            return (
-              <Card
-                key={coin.symbol}
-                className="p-6 bg-card/50 backdrop-blur-sm border-primary/20 hover:border-primary/50 transition-all hover:glow-purple group"
-                style={{ animationDelay: `${index * 100}ms` }}
-              >
-                <div className="flex items-start justify-between mb-4">
-                  <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 rounded-full bg-gradient-primary flex items-center justify-center">
-                      <Icon className="w-6 h-6 text-primary-foreground" />
+                return (
+                  <Card
+                    key={coin.symbol}
+                    className="p-6 bg-card/50 backdrop-blur-sm border-primary/20 hover:border-primary/50 transition-all hover:glow-purple group"
+                    style={{ animationDelay: `${index * 100}ms` }}
+                  >
+                    <div className="flex items-start justify-between mb-4">
+                      <div className="flex items-center gap-3">
+                        <div className="w-12 h-12 rounded-full bg-gradient-primary flex items-center justify-center">
+                          <Icon className="w-6 h-6 text-primary-foreground" />
+                        </div>
+                        <div>
+                          <h3 className="font-bold text-lg">{coin.name}</h3>
+                          <p className="text-sm text-muted-foreground">{coin.symbol}</p>
+                        </div>
+                      </div>
+                      {isLoading ? (
+                        <div className="w-5 h-5 rounded-full border-2 border-white border-t-transparent animate-spin" />
+                      ) : isUp ? (
+                        <TrendingUp className="w-5 h-5 text-green-500" />
+                      ) : (
+                        <TrendingDown className="w-5 h-5 text-red-500" />
+                      )}
                     </div>
-                    <div>
-                      <h3 className="font-bold text-lg">{coin.name}</h3>
-                      <p className="text-sm text-muted-foreground">{coin.symbol}</p>
+                    <div className="space-y-1">
+                      <div className="text-2xl font-bold">{isLoading ? "--" : price ? formatPrice(price) : "N/A"}</div>
+                      <div className={`text-sm font-semibold ${isUp ? 'text-green-500' : 'text-red-500'}`}>
+                        {isLoading ? "" : typeof change === 'number' ? `${change.toFixed(2)}%` : ""}
+                      </div>
                     </div>
-                  </div>
-                  {isLoading ? (
-                    <div className="w-5 h-5 rounded-full border-2 border-white border-t-transparent animate-spin" />
-                  ) : isUp ? (
-                    <TrendingUp className="w-5 h-5 text-green-500" />
-                  ) : (
-                    <TrendingDown className="w-5 h-5 text-red-500" />
-                  )}
-                </div>
-                <div className="space-y-1">
-                  <div className="text-2xl font-bold">{isLoading ? "--" : price ? formatPrice(price) : "N/A"}</div>
-                  <div className={`text-sm font-semibold ${isUp ? 'text-green-500' : 'text-red-500'}`}>
-                    {isLoading ? "" : typeof change === 'number' ? `${change.toFixed(2)}%` : ""}
-                  </div>
-                </div>
-              </Card>
-            );
-          })}
-        </div>
+                  </Card>
+                );
+              })}
+            </>
+          )}
+  </div>
 
         <div className="text-center mt-12">
-          <p className="text-sm text-muted-foreground">
-            {isError ? (
-              "Prices unavailable right now • Showing cached or placeholder data"
-            ) : (
-              "Prices updated every 30 seconds • Powered by CoinGecko API"
-            )}
-          </p>
+          {isError ? (
+            <div className="flex flex-col items-center gap-3">
+              <p className="text-sm text-muted-foreground">Prices unavailable right now • Showing cached or placeholder data</p>
+              <Button onClick={() => refetch()} aria-label="Retry fetching prices">Retry</Button>
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">Prices updated every 30 seconds • Powered by CoinGecko API</p>
+          )}
         </div>
       </div>
     </section>

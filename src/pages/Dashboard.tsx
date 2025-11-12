@@ -6,6 +6,9 @@ import { useNavigate } from "react-router-dom";
 import Navigation from "@/components/Navigation";
 import { useState, useEffect } from "react";
 import { ethers } from "ethers";
+import CredentialsAuth, { getCurrentUser, clearCurrentUser, linkWalletToUser, unlinkWalletFromUser, getUser } from "@/components/CredentialsAuth";
+import { useToast } from "@/components/ui/use-toast";
+import { verifyMessage } from "ethers";
 
 const Dashboard = () => {
   const { account, disconnect, isConnected, connectWallet, isConnecting } = useWeb3();
@@ -29,28 +32,100 @@ const Dashboard = () => {
     fetchBalance();
   }, [account]);
 
-  // NOT CONNECTED → Show lock screen
-  if (!isConnected || !account) {
+  // NOT AUTHENTICATED → Show lock screen
+  const [credentialsUser, setCredentialsUser] = useState<string | null>(null);
+
+  useEffect(() => {
+    const cur = getCurrentUser();
+    setCredentialsUser(cur?.email || null);
+  }, []);
+
+  // track linked wallet for the credential user
+  const [linkedWallet, setLinkedWallet] = useState<any | null>(null);
+  const { toast } = useToast();
+
+  useEffect(() => {
+    if (!credentialsUser) return;
+    const u = getUser(credentialsUser);
+    setLinkedWallet(u?.linkedWallet || null);
+  }, [credentialsUser]);
+
+  const handleLinkWallet = async () => {
+    if (!credentialsUser) return;
+    if (!(window as any).ethereum) {
+      toast({ title: "MetaMask required", description: "Please install MetaMask or another wallet extension" });
+      return;
+    }
+    try {
+      // request accounts and get signer
+      await (window as any).ethereum.request({ method: "eth_requestAccounts" });
+      const provider = new ethers.BrowserProvider((window as any).ethereum);
+      const signer = await provider.getSigner();
+      const address = await signer.getAddress();
+
+      // Create a challenge and ask the user to sign it to prove ownership
+      const nonce = Math.floor(Math.random() * 1e9).toString();
+      const message = `Link wallet to BlockTek Radio account (${credentialsUser})\n\nNonce: ${nonce}`;
+      const signature = await signer.signMessage(message);
+
+      // Recover the address from the signature and compare
+      const recovered = verifyMessage(message, signature);
+      if (recovered.toLowerCase() !== address.toLowerCase()) {
+        toast({ title: "Verification failed", description: "Signature did not match the signer address." });
+        return;
+      }
+
+      const ok = linkWalletToUser(credentialsUser, address, true);
+      if (ok) {
+        setLinkedWallet({ address, verified: true });
+        toast({ title: "Wallet linked", description: `Linked ${address}` });
+      } else {
+        toast({ title: "Failed", description: "Could not link wallet" });
+      }
+    } catch (err: any) {
+      console.error(err);
+      toast({ title: "Error", description: err?.message || "Failed to link wallet" });
+    }
+  };
+
+  const handleUnlink = () => {
+    if (!credentialsUser) return;
+    const ok = unlinkWalletFromUser(credentialsUser);
+    if (ok) {
+      setLinkedWallet(null);
+      toast({ title: "Unlinked", description: "Wallet disconnected from account" });
+    } else {
+      toast({ title: "Failed", description: "Could not unlink wallet" });
+    }
+  };
+
+  if (!isConnected && !credentialsUser) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center p-4 pt-20">
         <Card className="p-8 text-center max-w-md w-full">
           <Lock className="w-16 h-16 mx-auto mb-4 text-muted-foreground" />
           <h2 className="text-2xl font-bold mb-2">Wallet Required</h2>
-          <p className="text-muted-foreground mb-6">Connect your wallet to access your dashboard.</p>
+          <p className="text-muted-foreground mb-6">Connect your wallet or sign in with credentials to access your dashboard.</p>
           <div className="space-y-3">
             <Button onClick={connectWallet} className="w-full" disabled={isConnecting}>
               {isConnecting ? "Connecting..." : "Connect Wallet"}
             </Button>
-            <Button onClick={() => navigate("/#live")} variant="outline" className="w-full">
-              Go to Live Stream
-            </Button>
+            <div className="flex gap-2">
+              <CredentialsAuth onLogin={(email) => setCredentialsUser(email)} />
+              <Button onClick={() => navigate("/#live")} variant="outline" className="flex-1">
+                Go to Live Stream
+              </Button>
+            </div>
           </div>
         </Card>
       </div>
     );
   }
 
-  const formatAddress = (addr: string) => `${addr.slice(0, 6)}...${addr.slice(-4)}`;
+  const formatAddress = (addr?: string | null) => {
+    if (!addr) return "";
+    return `${addr.slice(0, 6)}...${addr.slice(-4)}`;
+  };
 
   const stats = [
     { label: "Listening Time", value: "48h 12m", icon: Headphones },
@@ -72,16 +147,38 @@ const Dashboard = () => {
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
           <div>
             <h1 className="text-4xl font-bold text-gradient">Dashboard</h1>
-            <p className="text-muted-foreground">Welcome back, {formatAddress(account)}</p>
+            <p className="text-muted-foreground">Welcome back, {account ? formatAddress(account) : credentialsUser ? credentialsUser : "Listener"}</p>
           </div>
           <div className="flex gap-3">
             <Button variant="outline" size="icon">
               <Settings className="w-5 h-5" />
             </Button>
-            <Button variant="outline" onClick={disconnect} className="gap-2">
-              <LogOut className="w-4 h-4" />
-              <span className="hidden sm:inline">Disconnect</span>
-            </Button>
+            {credentialsUser ? (
+              <div className="flex items-center gap-2">
+                {linkedWallet ? (
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-muted-foreground">
+                      Linked: {linkedWallet.address ? formatAddress(linkedWallet.address) : String(linkedWallet)}
+                      {linkedWallet.verified ? (
+                        <span className="ml-2 text-xs font-medium text-green-500">Verified</span>
+                      ) : null}
+                    </span>
+                    <Button variant="outline" size="sm" onClick={handleUnlink}>Unlink</Button>
+                  </div>
+                ) : (
+                  <Button variant="outline" onClick={handleLinkWallet} className="gap-2">Link Wallet</Button>
+                )}
+                <Button variant="outline" onClick={() => { clearCurrentUser(); setCredentialsUser(null); }} className="gap-2">
+                  <LogOut className="w-4 h-4" />
+                  <span className="hidden sm:inline">Logout</span>
+                </Button>
+              </div>
+            ) : (
+              <Button variant="outline" onClick={disconnect} className="gap-2">
+                <LogOut className="w-4 h-4" />
+                <span className="hidden sm:inline">Disconnect</span>
+              </Button>
+            )}
           </div>
         </div>
 

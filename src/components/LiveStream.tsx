@@ -9,7 +9,9 @@ const LiveStream = () => {
   const [isLoading, setIsLoading] = useState(false);
   const audioRef = useRef<HTMLAudioElement>(null);
 
-  const STREAM_URL = "/stream-audio.mp3";
+  // Allow configuring the stream URL via Vite env var VITE_STREAM_URL
+  // (set in .env as VITE_STREAM_URL="https://example.com/stream.mp3")
+  const STREAM_URL = import.meta.env.VITE_STREAM_URL ?? "/stream-audio.mp3";
 
   const upcomingShows = [
     { time: "10:00 AM", title: "Blockchain Morning Brief", host: "DJ CryptoKen" },

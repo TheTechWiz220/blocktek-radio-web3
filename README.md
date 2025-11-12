@@ -36,6 +36,16 @@ npm i
 npm run dev
 ```
 
+## Environment variables
+
+You can configure the live stream URL without editing code by creating a `.env` file in the project root with the following variable:
+
+```
+VITE_STREAM_URL="https://your-stream-host.example/stream.mp3"
+```
+
+Vite exposes env variables prefixed with `VITE_` to the client build. If `VITE_STREAM_URL` is not set, the app falls back to `/stream-audio.mp3`.
+
 **Edit a file directly in GitHub**
 
 - Navigate to the desired file(s).
