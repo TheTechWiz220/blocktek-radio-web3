@@ -81,12 +81,23 @@ export async function requestDj() {
   return API.post('/admin/request-dj', {});
 }
 
-export async function getDjRequests() {
-  return API.get('/admin/requests');
+export async function getDjRequests(params?: { page?: number; pageSize?: number; q?: string; status?: string }) {
+  const qs = params
+    ? '?' + Object.entries(params).filter(([k, v]) => v !== undefined && v !== null && v !== '').map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(String(v))}`).join('&')
+    : '';
+  return API.get(`/admin/requests${qs}`);
 }
 
 export async function approveDjRequest(requestId: number) {
   return API.post('/admin/approve', { requestId });
+}
+
+export async function rejectDjRequest(requestId: number) {
+  return API.post('/admin/reject', { requestId });
+}
+
+export async function getDjRequest(requestId: number) {
+  return API.get(`/admin/requests/${encodeURIComponent(String(requestId))}`);
 }
 
 export default API;

@@ -18,7 +18,14 @@ function getSessionUser(req, callback) {
 router.get('/me', (req, res) => {
   getSessionUser(req, (u) => {
     if (!u) return res.status(401).json({ error: 'Not authenticated' });
-    res.json({ profile: u });
+    // fetch linked wallets for the user
+    db.all(`SELECT id,address,verified,linkedAt FROM wallet_links WHERE userId = ?`, [u.id], (err, links) => {
+      if (err) {
+        console.error('Failed to load wallet links', err);
+        return res.json({ profile: u, wallet_links: [] });
+      }
+      res.json({ profile: u, wallet_links: links || [] });
+    });
   });
 });
 

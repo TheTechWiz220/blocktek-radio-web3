@@ -4,6 +4,8 @@ Quick start:
 1. cd server
 2. npm install
 3. npm run dev
+4. (optional) create an initial admin user for testing:
+  npm run seed -- admin@example.com adminpass
 
 Server endpoints:
 - POST /api/auth/register { email, password } -> creates user, sets httpOnly cookie session

@@ -12,6 +12,11 @@ function setSession(res, token) {
 }
 
 router.post('/register', async (req, res) => {
+  // ignore any role provided by client to avoid privilege escalation
+  if (req.body && req.body.role) {
+    console.warn('Client attempted to set role during registration; ignoring.');
+    delete req.body.role;
+  }
   const { email, password } = req.body;
   if (!email || !password) return res.status(400).json({ error: 'Missing fields' });
 
@@ -20,6 +25,7 @@ router.post('/register', async (req, res) => {
     const hash = await bcrypt.hash(password, 10);
     db.run(
       `INSERT INTO users (email, passwordHash, displayName, avatarUrl, bio, role, createdAt, updatedAt) VALUES (?,?,?,?,?,?,?,?)`,
+      // always create regular listener accounts through public register
       [email, hash, email.split('@')[0], '', '', 'listener', createdAt, createdAt],
       function (err) {
         if (err) return res.status(400).json({ error: 'Email already registered' });

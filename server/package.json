@@ -4,7 +4,8 @@
   "private": true,
   "scripts": {
     "dev": "node index.js",
-    "start": "node index.js"
+    "start": "node index.js",
+    "seed": "node scripts/seed-admin.js"
   },
   "dependencies": {
     "bcrypt": "^5.1.0",

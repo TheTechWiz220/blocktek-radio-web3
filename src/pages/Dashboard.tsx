@@ -140,7 +140,19 @@ const Dashboard = () => {
               {isConnecting ? "Connecting..." : "Connect Wallet"}
             </Button>
             <div className="flex gap-2">
-              <CredentialsAuth onLogin={(email) => setCredentialsUser(email)} />
+              <CredentialsAuth onLogin={(profile) => { setCredentialsUser(profile?.email || null); setServerProfile(profile || null); if (profile?.role === 'admin') { navigate('/admin'); } }} />
+              {/* Show Admin Login only when not already signed in as admin */}
+              {!serverProfile?.role || serverProfile?.role !== 'admin' ? (
+                <CredentialsAuth variant="admin" triggerLabel="Admin Login" onLogin={(profile) => {
+                  if (profile?.role === 'admin') {
+                    setServerProfile(profile || null);
+                    setCredentialsUser(profile?.email || null);
+                    navigate('/admin');
+                  } else {
+                    try { toast({ title: 'Not an admin', description: 'This account does not have admin privileges' }); } catch {}
+                  }
+                }} />
+              ) : null}
               <Button onClick={() => navigate("/#live")} variant="outline" className="flex-1">
                 Go to Live Stream
               </Button>
