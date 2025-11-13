@@ -1,5 +1,6 @@
 const API = {
-  base: '/api',
+  // allow overriding API base during development via VITE_API_BASE
+  base: (import.meta as any).env?.VITE_API_BASE || '/api',
   async post(path: string, body: any) {
     const res = await fetch(`${this.base}${path}`, {
       method: 'POST',

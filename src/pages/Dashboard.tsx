@@ -6,7 +6,7 @@ import { useNavigate } from "react-router-dom";
 import Navigation from "@/components/Navigation";
 import { useState, useEffect } from "react";
 import { ethers } from "ethers";
-import CredentialsAuth, { getCurrentUser, clearCurrentUser, linkWalletToUser, unlinkWalletFromUser, getUser } from "@/components/CredentialsAuth";
+import CredentialsAuth from "@/components/CredentialsAuth";
 import * as api from "@/lib/api";
 import ProfileEditor from "@/components/ProfileEditor";
 import { useToast } from "@/components/ui/use-toast";
@@ -48,13 +48,12 @@ const Dashboard = () => {
         setServerProfile(p || null);
         setCredentialsUser(p?.email || null);
       } catch (e) {
-        const cur = getCurrentUser();
-        setCredentialsUser(cur?.email || null);
+        // not authenticated
+        setServerProfile(null);
+        setCredentialsUser(null);
       }
     })();
-    return () => {
-      mounted = false;
-    };
+    return () => { mounted = false; };
   }, []);
 
   // track linked wallet for the credential user
@@ -63,14 +62,8 @@ const Dashboard = () => {
 
   useEffect(() => {
     if (!credentialsUser) return;
-    // if server profile exists, fetch linked wallets from server? For now rely on local wallet_links table and serverProfile
-    if (serverProfile) {
-      // server does not currently return wallet_links in /me, so we keep a simple UI until that is available
-      setLinkedWallet(null);
-      return;
-    }
-    const u = getUser(credentialsUser);
-    setLinkedWallet(u?.linkedWallet || null);
+    // serverProfile should contain canonical profile; for now wallet_links aren't returned in /me, set linkedWallet null
+    setLinkedWallet(null);
   }, [credentialsUser, serverProfile]);
 
   const handleLinkWallet = async () => {
@@ -109,13 +102,8 @@ const Dashboard = () => {
         toast({ title: "Verification failed", description: "Signature did not match the signer address." });
         return;
       }
-      const ok = linkWalletToUser(credentialsUser as string, address, true);
-      if (ok) {
-        setLinkedWallet({ address, verified: true });
-        toast({ title: "Wallet linked", description: `Linked ${address}` });
-      } else {
-        toast({ title: "Failed", description: "Could not link wallet" });
-      }
+      // should not reach here; linking requires server session
+      toast({ title: 'Not authenticated', description: 'Please sign in with credentials to link a wallet' });
     } catch (err: any) {
       console.error(err);
       toast({ title: "Error", description: err?.message || "Failed to link wallet" });
@@ -123,14 +111,20 @@ const Dashboard = () => {
   };
 
   const handleUnlink = async () => {
-    if (!credentialsUser) return;
-    // TODO: call server unlink endpoint when available
-    const ok = unlinkWalletFromUser(credentialsUser);
-    if (ok) {
+    if (!serverProfile) {
+      toast({ title: 'Not authenticated', description: 'Sign in to unlink wallets' });
+      return;
+    }
+    if (!linkedWallet?.address) {
+      toast({ title: 'No wallet', description: 'No linked wallet to unlink' });
+      return;
+    }
+    try {
+      await api.unlinkWallet(linkedWallet.address);
       setLinkedWallet(null);
-      toast({ title: "Unlinked", description: "Wallet disconnected from account" });
-    } else {
-      toast({ title: "Failed", description: "Could not unlink wallet" });
+      toast({ title: 'Unlinked', description: 'Wallet disconnected from account' });
+    } catch (e: any) {
+      toast({ title: 'Error', description: e?.message || 'Failed to unlink wallet' });
     }
   };
 
@@ -182,17 +176,20 @@ const Dashboard = () => {
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
             <div className="flex items-center gap-4">
               <div className="w-12 h-12 rounded-full overflow-hidden bg-muted flex items-center justify-center">
-                <img src={(credentialsUser && getUser(credentialsUser)?.profile?.avatarUrl) || "/avatar-placeholder.png"} alt="avatar" className="w-12 h-12 object-cover" />
+                <img src={(serverProfile && serverProfile.avatarUrl) || "/avatar-placeholder.png"} alt="avatar" className="w-12 h-12 object-cover" />
               </div>
               <div>
                 <h1 className="text-4xl font-bold text-gradient">Dashboard</h1>
-                <p className="text-muted-foreground">Welcome back, {account ? formatAddress(account) : credentialsUser ? (getUser(credentialsUser)?.profile?.displayName || credentialsUser) : "Listener"}</p>
+                <p className="text-muted-foreground">Welcome back, {account ? formatAddress(account) : serverProfile ? (serverProfile.displayName || serverProfile.email) : "Listener"}</p>
               </div>
             </div>
           <div className="flex gap-3">
             <Button variant="outline" size="icon">
               <Settings className="w-5 h-5" />
             </Button>
+            {serverProfile?.role === 'admin' ? (
+              <Button variant="outline" size="icon" onClick={() => navigate('/admin')}>Admin</Button>
+            ) : null}
             {credentialsUser ? (
               <div className="flex items-center gap-2">
                 {linkedWallet ? (
@@ -209,8 +206,11 @@ const Dashboard = () => {
                   <Button variant="outline" onClick={handleLinkWallet} className="gap-2">Link Wallet</Button>
                 )}
                 <div className="flex items-center gap-2">
-                  <ProfileEditor onUpdated={() => { const cur = getCurrentUser(); setCredentialsUser(cur?.email || null); }} />
-                  <Button variant="outline" onClick={async () => { try { await api.logout(); } catch (e) { /* ignore */ } clearCurrentUser(); setCredentialsUser(null); }} className="gap-2">
+                  {serverProfile && serverProfile.role !== 'dj' && serverProfile.role !== 'admin' ? (
+                    <Button onClick={async () => { try { await api.requestDj(); toast({ title: 'Requested', description: 'DJ request submitted' }); } catch (e: any) { toast({ title: 'Error', description: e?.message || 'Failed to request DJ role' }); } }} variant="ghost">Request DJ</Button>
+                  ) : null}
+                  <ProfileEditor onUpdated={async () => { try { const d = await api.getMe(); setServerProfile(d.profile || null); setCredentialsUser(d.profile?.email || null); } catch { setServerProfile(null); setCredentialsUser(null); } }} />
+                  <Button variant="outline" onClick={async () => { try { await api.logout(); } catch (e) { /* ignore */ } setServerProfile(null); setCredentialsUser(null); }} className="gap-2">
                     <LogOut className="w-4 h-4" />
                     <span className="hidden sm:inline">Logout</span>
                   </Button>

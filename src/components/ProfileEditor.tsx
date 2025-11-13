@@ -4,7 +4,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Avatar } from "@/components/ui/avatar";
-import CredentialsAuth, { getCurrentUser, getUser, setUserProfile } from "@/components/CredentialsAuth";
 import * as api from "@/lib/api";
 import { useToast } from "@/components/ui/use-toast";
 
@@ -16,44 +15,30 @@ export default function ProfileEditor({ onUpdated }: { onUpdated?: () => void })
 
   useEffect(() => {
     let mounted = true;
-    const cur = getCurrentUser();
-    setEmail(cur?.email || null);
-    // prefer server profile
     (async () => {
       try {
         const data = await api.getMe();
         if (!mounted) return;
-        setProfile(data.profile || {});
+        setEmail(data.profile?.email || null);
+        setProfile(data.profile || { displayName: '', avatarUrl: '', bio: '' });
       } catch (e) {
-        // fallback to local
-        if (cur?.email) {
-          const u = getUser(cur.email);
-          setProfile(u?.profile || {});
-        }
+        // not authenticated
+        setEmail(null);
+        setProfile({ displayName: '', avatarUrl: '', bio: '' });
       }
     })();
-    return () => {
-      mounted = false;
-    };
+    return () => { mounted = false; };
   }, [open]);
 
   const handleSave = () => {
-    if (!email) {
-      toast({ title: "Not signed in", description: "Sign in to edit profile" });
-      return;
-    }
     (async () => {
       try {
         await api.updateMe({ displayName: profile.displayName, bio: profile.bio, avatarUrl: profile.avatarUrl });
         toast({ title: "Saved", description: "Profile updated" });
         setOpen(false);
         onUpdated?.();
-      } catch (e) {
-        // fallback to local
-        setUserProfile(email, profile);
-        toast({ title: "Saved (local)", description: "Profile updated locally" });
-        setOpen(false);
-        onUpdated?.();
+      } catch (e: any) {
+        toast({ title: "Error", description: e?.message || 'Failed to update profile' });
       }
     })();
   };
@@ -69,16 +54,10 @@ export default function ProfileEditor({ onUpdated }: { onUpdated?: () => void })
         const res = await api.uploadAvatar(file);
         if (res?.url) {
           setProfile((p: any) => ({ ...p, avatarUrl: res.url }));
-          return;
         }
-      } catch (e) {
-        // fallback to data URL
+      } catch (e: any) {
+        toast({ title: 'Upload failed', description: e?.message || 'Could not upload avatar' });
       }
-      const reader = new FileReader();
-      reader.onload = () => {
-        setProfile((p: any) => ({ ...p, avatarUrl: reader.result }));
-      };
-      reader.readAsDataURL(file);
     })();
   };
 
