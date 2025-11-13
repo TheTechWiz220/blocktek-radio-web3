@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { useToast } from "@/components/ui/use-toast";
+import * as api from "@/lib/api";
 
 // Simple client-side credential store (not secure; for demo only)
 const USERS_KEY = "bt_users";
@@ -27,6 +28,15 @@ function getUsers(): Record<string, any> {
 
 function setUsers(users: Record<string, any>) {
   localStorage.setItem(USERS_KEY, JSON.stringify(users));
+}
+
+export function setUserProfile(email: string, profile: Record<string, any>) {
+  const users = getUsers();
+  if (!users[email]) return false;
+  users[email].profile = { ...(users[email].profile || {}), ...profile };
+  users[email].updatedAt = Date.now();
+  setUsers(users);
+  return true;
 }
 
 function setCurrentUser(email: string) {
@@ -84,18 +94,37 @@ export default function CredentialsAuth({ onLogin }: { onLogin?: (email: string)
       toast({ title: "Missing fields", description: "Please provide email and password" });
       return;
     }
-    const users = getUsers();
-    if (users[registerEmail]) {
-      toast({ title: "Already registered", description: "Account with this email already exists" });
-      return;
+    try {
+      await api.register(registerEmail, registerPassword);
+      toast({ title: "Registered", description: "Account created and logged in" });
+      setOpen(false);
+      onLogin?.(registerEmail);
+    } catch (e: any) {
+      // fallback to client-side store if server unavailable
+      const users = getUsers();
+      if (users[registerEmail]) {
+        toast({ title: "Already registered", description: "Account with this email already exists" });
+        return;
+      }
+      const hash = await hashPassword(registerPassword);
+      const displayName = registerEmail.split("@")[0];
+      users[registerEmail] = {
+        passwordHash: hash,
+        createdAt: Date.now(),
+        profile: {
+          displayName,
+          avatarUrl: "",
+          bio: "",
+          preferences: { theme: "system", autoplay: false, volume: 0.8 },
+          role: "listener",
+        },
+      };
+      setUsers(users);
+      setCurrentUser(registerEmail);
+      toast({ title: "Registered (local)", description: "Account created locally" });
+      setOpen(false);
+      onLogin?.(registerEmail);
     }
-    const hash = await hashPassword(registerPassword);
-    users[registerEmail] = { passwordHash: hash, createdAt: Date.now() };
-    setUsers(users);
-    setCurrentUser(registerEmail);
-    toast({ title: "Registered", description: "Account created and logged in" });
-    setOpen(false);
-    onLogin?.(registerEmail);
   };
 
   const handleLogin = async () => {
@@ -103,6 +132,16 @@ export default function CredentialsAuth({ onLogin }: { onLogin?: (email: string)
       toast({ title: "Missing fields", description: "Please provide email and password" });
       return;
     }
+    try {
+      await api.login(loginEmail, loginPassword);
+      toast({ title: "Logged in", description: "Welcome back" });
+      setOpen(false);
+      onLogin?.(loginEmail);
+      return;
+    } catch (e: any) {
+      // fallback to local
+    }
+
     const users = getUsers();
     const existing = users[loginEmail];
     if (!existing) {
@@ -115,7 +154,7 @@ export default function CredentialsAuth({ onLogin }: { onLogin?: (email: string)
       return;
     }
     setCurrentUser(loginEmail);
-    toast({ title: "Logged in", description: "Welcome back" });
+    toast({ title: "Logged in (local)", description: "Welcome back" });
     setOpen(false);
     onLogin?.(loginEmail);
   };

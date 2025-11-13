@@ -7,6 +7,8 @@ import Navigation from "@/components/Navigation";
 import { useState, useEffect } from "react";
 import { ethers } from "ethers";
 import CredentialsAuth, { getCurrentUser, clearCurrentUser, linkWalletToUser, unlinkWalletFromUser, getUser } from "@/components/CredentialsAuth";
+import * as api from "@/lib/api";
+import ProfileEditor from "@/components/ProfileEditor";
 import { useToast } from "@/components/ui/use-toast";
 import { verifyMessage } from "ethers";
 
@@ -34,10 +36,25 @@ const Dashboard = () => {
 
   // NOT AUTHENTICATED → Show lock screen
   const [credentialsUser, setCredentialsUser] = useState<string | null>(null);
+  const [serverProfile, setServerProfile] = useState<any | null>(null);
 
   useEffect(() => {
-    const cur = getCurrentUser();
-    setCredentialsUser(cur?.email || null);
+    let mounted = true;
+    (async () => {
+      try {
+        const data = await api.getMe();
+        if (!mounted) return;
+        const p = data.profile;
+        setServerProfile(p || null);
+        setCredentialsUser(p?.email || null);
+      } catch (e) {
+        const cur = getCurrentUser();
+        setCredentialsUser(cur?.email || null);
+      }
+    })();
+    return () => {
+      mounted = false;
+    };
   }, []);
 
   // track linked wallet for the credential user
@@ -46,36 +63,53 @@ const Dashboard = () => {
 
   useEffect(() => {
     if (!credentialsUser) return;
+    // if server profile exists, fetch linked wallets from server? For now rely on local wallet_links table and serverProfile
+    if (serverProfile) {
+      // server does not currently return wallet_links in /me, so we keep a simple UI until that is available
+      setLinkedWallet(null);
+      return;
+    }
     const u = getUser(credentialsUser);
     setLinkedWallet(u?.linkedWallet || null);
-  }, [credentialsUser]);
+  }, [credentialsUser, serverProfile]);
 
   const handleLinkWallet = async () => {
-    if (!credentialsUser) return;
     if (!(window as any).ethereum) {
       toast({ title: "MetaMask required", description: "Please install MetaMask or another wallet extension" });
       return;
     }
     try {
-      // request accounts and get signer
-      await (window as any).ethereum.request({ method: "eth_requestAccounts" });
+      await (window as any).ethereum.request({ method: 'eth_requestAccounts' });
       const provider = new ethers.BrowserProvider((window as any).ethereum);
       const signer = await provider.getSigner();
       const address = await signer.getAddress();
 
-      // Create a challenge and ask the user to sign it to prove ownership
+      // If server supports nonces, use server nonce flow
+      if (serverProfile) {
+        const nonceResp = await api.createWalletNonce();
+        const nonce = nonceResp.nonce;
+        const message = `Link wallet to BlockTek Radio account (${serverProfile.email})\n\nNonce: ${nonce}`;
+        const signature = await signer.signMessage(message);
+        const resp = await api.linkWallet(signature, nonce);
+        if (resp?.ok) {
+          setLinkedWallet({ address: resp.address, verified: true });
+          toast({ title: 'Wallet linked', description: `Linked ${resp.address}` });
+        } else {
+          toast({ title: 'Failed', description: 'Could not link wallet' });
+        }
+        return;
+      }
+
+      // fallback: client-side signing and store locally
       const nonce = Math.floor(Math.random() * 1e9).toString();
       const message = `Link wallet to BlockTek Radio account (${credentialsUser})\n\nNonce: ${nonce}`;
       const signature = await signer.signMessage(message);
-
-      // Recover the address from the signature and compare
       const recovered = verifyMessage(message, signature);
       if (recovered.toLowerCase() !== address.toLowerCase()) {
         toast({ title: "Verification failed", description: "Signature did not match the signer address." });
         return;
       }
-
-      const ok = linkWalletToUser(credentialsUser, address, true);
+      const ok = linkWalletToUser(credentialsUser as string, address, true);
       if (ok) {
         setLinkedWallet({ address, verified: true });
         toast({ title: "Wallet linked", description: `Linked ${address}` });
@@ -88,8 +122,9 @@ const Dashboard = () => {
     }
   };
 
-  const handleUnlink = () => {
+  const handleUnlink = async () => {
     if (!credentialsUser) return;
+    // TODO: call server unlink endpoint when available
     const ok = unlinkWalletFromUser(credentialsUser);
     if (ok) {
       setLinkedWallet(null);
@@ -145,10 +180,15 @@ const Dashboard = () => {
       <div className="container mx-auto px-4 py-8 pt-24">
         {/* Header */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
-          <div>
-            <h1 className="text-4xl font-bold text-gradient">Dashboard</h1>
-            <p className="text-muted-foreground">Welcome back, {account ? formatAddress(account) : credentialsUser ? credentialsUser : "Listener"}</p>
-          </div>
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 rounded-full overflow-hidden bg-muted flex items-center justify-center">
+                <img src={(credentialsUser && getUser(credentialsUser)?.profile?.avatarUrl) || "/avatar-placeholder.png"} alt="avatar" className="w-12 h-12 object-cover" />
+              </div>
+              <div>
+                <h1 className="text-4xl font-bold text-gradient">Dashboard</h1>
+                <p className="text-muted-foreground">Welcome back, {account ? formatAddress(account) : credentialsUser ? (getUser(credentialsUser)?.profile?.displayName || credentialsUser) : "Listener"}</p>
+              </div>
+            </div>
           <div className="flex gap-3">
             <Button variant="outline" size="icon">
               <Settings className="w-5 h-5" />
@@ -168,10 +208,13 @@ const Dashboard = () => {
                 ) : (
                   <Button variant="outline" onClick={handleLinkWallet} className="gap-2">Link Wallet</Button>
                 )}
-                <Button variant="outline" onClick={() => { clearCurrentUser(); setCredentialsUser(null); }} className="gap-2">
-                  <LogOut className="w-4 h-4" />
-                  <span className="hidden sm:inline">Logout</span>
-                </Button>
+                <div className="flex items-center gap-2">
+                  <ProfileEditor onUpdated={() => { const cur = getCurrentUser(); setCredentialsUser(cur?.email || null); }} />
+                  <Button variant="outline" onClick={async () => { try { await api.logout(); } catch (e) { /* ignore */ } clearCurrentUser(); setCredentialsUser(null); }} className="gap-2">
+                    <LogOut className="w-4 h-4" />
+                    <span className="hidden sm:inline">Logout</span>
+                  </Button>
+                </div>
               </div>
             ) : (
               <Button variant="outline" onClick={disconnect} className="gap-2">
