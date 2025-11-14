@@ -14,7 +14,7 @@ export type Founder = {
 
 export const FOUNDERS: Founder[] = [
   {
-    name: "The Tech Wiz",
+    name: "The TechWiz",
     role: "Founder & CTO",
     handle: "@thetechwiz220",
     twitter: "thetechwiz220",
