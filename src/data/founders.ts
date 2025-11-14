@@ -15,7 +15,7 @@ export type Founder = {
 export const FOUNDERS: Founder[] = [
   {
     name: "The Tech Wiz",
-    role: "Co-Founder & CTO",
+    role: "Founder & CTO",
     handle: "@thetechwiz220",
     twitter: "thetechwiz220",
     xUrl: "https://x.com/thetechwiz220",
@@ -24,11 +24,11 @@ export const FOUNDERS: Founder[] = [
     email: "hello@thetechwiz.dev",
     location: "Banjul, The Gambia",
     bio: "Blockchain developer and educator focused on building infrastructure and tools that make Web3 accessible. Leads technical strategy, product architecture, and developer community initiatives.",
-    image: "https://unavatar.io/twitter/thetechwiz220"
+    image: "https://unavatar.io/twitter/thetechwiz220" // If not loading, replace with direct link or placeholder: "https://pbs.twimg.com/profile_images/your-id/image.jpg" or "https://via.placeholder.com/150?text=TTW"
   },
   {
     name: "Stan Munyasia",
-    role: "Co-Founder & Head of Content",
+    role: "Advisor & Head of Content",
     handle: "@stanmunyasia",
     twitter: "stanmunyasia",
     xUrl: "https://x.com/stanmunyasia",
