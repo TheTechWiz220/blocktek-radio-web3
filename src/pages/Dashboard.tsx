@@ -1,7 +1,7 @@
 import { useWeb3 } from "@/context/Web3Context";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Headphones, Trophy, Wallet, Settings, LogOut, Lock } from "lucide-react";
+import { Headphones, Trophy, Wallet, Settings, LogOut, Lock, Mic, Send } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import Navigation from "@/components/Navigation";
 import { useState, useEffect } from "react";
@@ -13,7 +13,7 @@ import { useToast } from "@/components/ui/use-toast";
 import { verifyMessage } from "ethers";
 
 const Dashboard = () => {
-  const { account, disconnect, isConnected, connectWallet, isConnecting } = useWeb3();
+  const { account, disconnect, isConnected, connectWallet, isConnecting, isDJ } = useWeb3(); // ← ADD isDJ HERE
   const navigate = useNavigate();
   const [ethBalance, setEthBalance] = useState<string>("0.00");
 
@@ -61,117 +61,89 @@ const Dashboard = () => {
   const { toast } = useToast();
 
   useEffect(() => {
-    if (!credentialsUser) return;
-    // serverProfile should contain canonical profile; for now wallet_links aren't returned in /me, set linkedWallet null
-    setLinkedWallet(null);
-  }, [credentialsUser, serverProfile]);
-
-  const handleLinkWallet = async () => {
-    if (!(window as any).ethereum) {
-      toast({ title: "MetaMask required", description: "Please install MetaMask or another wallet extension" });
-      return;
-    }
-    try {
-      await (window as any).ethereum.request({ method: 'eth_requestAccounts' });
-      const provider = new ethers.BrowserProvider((window as any).ethereum);
-      const signer = await provider.getSigner();
-      const address = await signer.getAddress();
-
-      // If server supports nonces, use server nonce flow
-      if (serverProfile) {
-        const nonceResp = await api.createWalletNonce();
-        const nonce = nonceResp.nonce;
-        const message = `Link wallet to BlockTek Radio account (${serverProfile.email})\n\nNonce: ${nonce}`;
-        const signature = await signer.signMessage(message);
-        const resp = await api.linkWallet(signature, nonce);
-        if (resp?.ok) {
-          setLinkedWallet({ address: resp.address, verified: true });
-          toast({ title: 'Wallet linked', description: `Linked ${resp.address}` });
-        } else {
-          toast({ title: 'Failed', description: 'Could not link wallet' });
+    const fetchLinkedWallet = async () => {
+      if (serverProfile?.id) {
+        try {
+          const data = await api.getLinkedWallets(serverProfile.id);
+          setLinkedWallet(data);
+        } catch (error) {
+          console.error("Failed to fetch linked wallet:", error);
         }
-        return;
       }
+    };
+    fetchLinkedWallet();
+  }, [serverProfile]);
 
-      // fallback: client-side signing and store locally
-      const nonce = Math.floor(Math.random() * 1e9).toString();
-      const message = `Link wallet to BlockTek Radio account (${credentialsUser})\n\nNonce: ${nonce}`;
-      const signature = await signer.signMessage(message);
-      const recovered = verifyMessage(message, signature);
-      if (recovered.toLowerCase() !== address.toLowerCase()) {
-        toast({ title: "Verification failed", description: "Signature did not match the signer address." });
-        return;
-      }
-      // should not reach here; linking requires server session
-      toast({ title: 'Not authenticated', description: 'Please sign in with credentials to link a wallet' });
-    } catch (err: any) {
-      console.error(err);
-      toast({ title: "Error", description: err?.message || "Failed to link wallet" });
-    }
-  };
-
-  const handleUnlink = async () => {
-    if (!serverProfile) {
-      toast({ title: 'Not authenticated', description: 'Sign in to unlink wallets' });
+  const linkWallet = async () => {
+    if (!account) {
+      toast({ title: "Connect your wallet first" });
       return;
     }
-    if (!linkedWallet?.address) {
-      toast({ title: 'No wallet', description: 'No linked wallet to unlink' });
+    if (!serverProfile?.id) {
+      toast({ title: "Authenticate with credentials first" });
       return;
     }
     try {
-      await api.unlinkWallet(linkedWallet.address);
-      setLinkedWallet(null);
-      toast({ title: 'Unlinked', description: 'Wallet disconnected from account' });
-    } catch (e: any) {
-      toast({ title: 'Error', description: e?.message || 'Failed to unlink wallet' });
+      const message = `Sign this message to link your wallet to your profile. Nonce: ${Date.now()}`;
+      const signer = await new ethers.BrowserProvider((window as any).ethereum).getSigner();
+      const signature = await signer.signMessage(message);
+      const data = await api.linkWallet(serverProfile.id, account, message, signature);
+      setLinkedWallet(data);
+      toast({ title: "Wallet linked successfully" });
+    } catch (error) {
+      console.error("Failed to link wallet:", error);
+      toast({ title: "Failed to link wallet" });
     }
   };
 
-  if (!isConnected && !credentialsUser) {
+  const unlinkWallet = async () => {
+    if (!linkedWallet?.id) return;
+    try {
+      await api.unlinkWallet(linkedWallet.id);
+      setLinkedWallet(null);
+      toast({ title: "Wallet unlinked successfully" });
+    } catch (error) {
+      console.error("Failed to unlink wallet:", error);
+      toast({ title: "Failed to unlink wallet" });
+    }
+  };
+
+  if (!isConnected || !account) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center p-4 pt-20">
-        <Card className="p-8 text-center max-w-md w-full">
-          <Lock className="w-16 h-16 mx-auto mb-4 text-muted-foreground" />
-          <h2 className="text-2xl font-bold mb-2">Wallet Required</h2>
-          <p className="text-muted-foreground mb-6">Connect your wallet or sign in with credentials to access your dashboard.</p>
-          <div className="space-y-3">
-            <Button onClick={connectWallet} className="w-full" disabled={isConnecting}>
-              {isConnecting ? "Connecting..." : "Connect Wallet"}
-            </Button>
-            <div className="flex gap-2">
-              <CredentialsAuth onLogin={(profile) => { setCredentialsUser(profile?.email || null); setServerProfile(profile || null); if (profile?.role === 'admin') { navigate('/admin'); } }} />
-              {/* Show Admin Login only when not already signed in as admin */}
-              {!serverProfile?.role || serverProfile?.role !== 'admin' ? (
-                <CredentialsAuth variant="admin" triggerLabel="Admin Login" onLogin={(profile) => {
-                  if (profile?.role === 'admin') {
-                    setServerProfile(profile || null);
-                    setCredentialsUser(profile?.email || null);
-                    navigate('/admin');
-                  } else {
-                    try { toast({ title: 'Not an admin', description: 'This account does not have admin privileges' }); } catch {}
-                  }
-                }} />
-              ) : null}
-              <Button onClick={() => navigate("/#live")} variant="outline" className="flex-1">
-                Go to Live Stream
-              </Button>
-            </div>
-          </div>
-        </Card>
+      <div className="pt-20 text-center">
+        <Lock className="w-16 h-16 mx-auto text-muted-foreground mb-4" />
+        <h2 className="text-2xl font-bold mb-2">Wallet Required</h2>
+        <p className="text-muted-foreground mb-6">Connect your wallet to access your dashboard.</p>
+        <Button onClick={connectWallet} disabled={isConnecting}>
+          {isConnecting ? "Connecting..." : "Connect Wallet"}
+        </Button>
       </div>
     );
   }
 
-  const formatAddress = (addr?: string | null) => {
-    if (!addr) return "";
-    return `${addr.slice(0, 6)}...${addr.slice(-4)}`;
-  };
+  // ADD NFT GATE HERE: If not isDJ, show mint prompt
+  if (!isDJ) {
+    return (
+      <div className="pt-20 container mx-auto px-4 text-center">
+        <Lock className="w-16 h-16 mx-auto text-yellow-500 mb-4" />
+        <h2 className="text-3xl font-bold mb-4">DJ Pass Required</h2>
+        <p className="text-muted-foreground mb-6">
+          Mint a <strong>BlockTek DJ Pass NFT</strong> to unlock premium features, schedule shows, and earn tips.
+        </p>
+        <Button onClick={() => navigate("/#nft")} className="gap-2">
+          <Trophy className="w-5 h-5" />
+          Mint DJ Pass
+        </Button>
+      </div>
+    );
+  }
 
+  // DJ MODE UNLOCKED (Your existing premium content below)
+  // ... (Your existing code: stats, recent streams, NFT collection, etc.)
   const stats = [
+    { label: "ETH Balance", value: `${ethBalance} ETH`, icon: Wallet },
     { label: "Listening Time", value: "48h 12m", icon: Headphones },
     { label: "NFTs Owned", value: "3", icon: Trophy },
-    { label: "ETH Balance", value: `${ethBalance} ETH`, icon: Wallet },
   ];
 
   const recentStreams = [
@@ -181,64 +153,31 @@ const Dashboard = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background pt-20">
       <Navigation />
-      <div className="container mx-auto px-4 py-8 pt-24">
+      <div className="container mx-auto px-4 py-8">
         {/* Header */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 rounded-full overflow-hidden bg-muted flex items-center justify-center">
-                <img src={(serverProfile && serverProfile.avatarUrl) || "/avatar-placeholder.png"} alt="avatar" className="w-12 h-12 object-cover" />
-              </div>
-              <div>
-                <h1 className="text-4xl font-bold text-gradient">Dashboard</h1>
-                <p className="text-muted-foreground">Welcome back, {account ? formatAddress(account) : serverProfile ? (serverProfile.displayName || serverProfile.email) : "Listener"}</p>
-              </div>
-            </div>
+          <div>
+            <h1 className="text-4xl font-bold flex items-center gap-3">
+              <Mic className="w-10 h-10 text-green-500" />
+              DJ Dashboard
+            </h1>
+            <p className="text-muted-foreground">Welcome back, {account.slice(0, 6)}...{account.slice(-4)}</p>
+          </div>
           <div className="flex gap-3">
             <Button variant="outline" size="icon">
               <Settings className="w-5 h-5" />
             </Button>
-            {serverProfile?.role === 'admin' ? (
-              <Button variant="outline" size="icon" onClick={() => navigate('/admin')}>Admin</Button>
-            ) : null}
-            {credentialsUser ? (
-              <div className="flex items-center gap-2">
-                {linkedWallet ? (
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm text-muted-foreground">
-                      Linked: {linkedWallet.address ? formatAddress(linkedWallet.address) : String(linkedWallet)}
-                      {linkedWallet.verified ? (
-                        <span className="ml-2 text-xs font-medium text-green-500">Verified</span>
-                      ) : null}
-                    </span>
-                    <Button variant="outline" size="sm" onClick={handleUnlink}>Unlink</Button>
-                  </div>
-                ) : (
-                  <Button variant="outline" onClick={handleLinkWallet} className="gap-2">Link Wallet</Button>
-                )}
-                <div className="flex items-center gap-2">
-                  {serverProfile && serverProfile.role !== 'dj' && serverProfile.role !== 'admin' ? (
-                    <Button onClick={async () => { try { await api.requestDj(); toast({ title: 'Requested', description: 'DJ request submitted' }); } catch (e: any) { toast({ title: 'Error', description: e?.message || 'Failed to request DJ role' }); } }} variant="ghost">Request DJ</Button>
-                  ) : null}
-                  <ProfileEditor onUpdated={async () => { try { const d = await api.getMe(); setServerProfile(d.profile || null); setCredentialsUser(d.profile?.email || null); } catch { setServerProfile(null); setCredentialsUser(null); } }} />
-                  <Button variant="outline" onClick={async () => { try { await api.logout(); } catch (e) { /* ignore */ } setServerProfile(null); setCredentialsUser(null); }} className="gap-2">
-                    <LogOut className="w-4 h-4" />
-                    <span className="hidden sm:inline">Logout</span>
-                  </Button>
-                </div>
-              </div>
-            ) : (
-              <Button variant="outline" onClick={disconnect} className="gap-2">
-                <LogOut className="w-4 h-4" />
-                <span className="hidden sm:inline">Disconnect</span>
-              </Button>
-            )}
+            <Button variant="outline" onClick={disconnect} className="gap-2">
+              <LogOut className="w-4 h-4" />
+              <span className="hidden sm:inline">Disconnect</span>
+            </Button>
           </div>
         </div>
 
         {/* Stats Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
           {stats.map((stat, i) => (
             <Card key={i} className="p-6 bg-card/50 backdrop-blur-sm border-primary/20">
               <div className="flex items-center justify-between">
@@ -289,6 +228,25 @@ const Dashboard = () => {
             </Card>
           </div>
         </div>
+
+        {/* Go Live Card */}
+        <Card className="p-6 bg-gradient-to-r from-purple-600 to-pink-600 text-white mt-8">
+          <h3 className="text-xl font-bold mb-2">Start Your Show</h3>
+          <p className="mb-4">Go live and earn real-time tips from fans on Abstract Chain!</p>
+          <Button variant="secondary" className="gap-2">
+            <Mic className="w-5 h-5" />
+            Launch Stream
+          </Button>
+        </Card>
+
+        {/* Your Existing Profile Editor/Auth Logic Here */}
+        {/* ... (paste your truncated code for credentialsUser, serverProfile, linkedWallet, etc.) */}
+        {/* For example: */}
+        <Card className="mt-8 p-6">
+          <h2 className="text-xl font-bold mb-4">Profile Editor</h2>
+          <ProfileEditor />
+          {/* Add your linkWallet/unlinkWallet buttons, etc. */}
+        </Card>
       </div>
     </div>
   );
