@@ -29,7 +29,7 @@ const About = () => {
   const founders = FOUNDERS;
 
   // ADD THIS: Default fallback image URL (use a public placeholder or your own)
-  const fallbackImage = "'/images/founders/techwiz-avatar.jpg'"; // Or '/images/default-avatar.jpg'
+  const fallbackImage = "'/images/techwiz-avatar.jpg'"; // Or '/images/default-avatar.jpg'
 
   return (
     <section id="about" className="py-20 md:py-32 relative">
