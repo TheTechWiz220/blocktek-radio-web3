@@ -4,6 +4,12 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { ethers } from 'ethers';
 
+// DJ PASS NFT CONTRACT (REPLACE WITH YOURS)
+const DJ_PASS_CONTRACT = "0xYourDJPassContract"; // ← UPDATE THIS
+const DJ_PASS_ABI = [
+  "function balanceOf(address owner) view returns (uint256)"
+];
+
 interface Web3ContextType {
   account: string | null;
   isConnected: boolean;
@@ -11,6 +17,7 @@ interface Web3ContextType {
   connectWallet: () => Promise<void>;
   disconnect: () => void;
   isConnecting: boolean;
+  isDJ: boolean; // ← ADD THIS
 }
 
 const Web3Context = createContext<Web3ContextType | undefined>(undefined);
@@ -19,12 +26,13 @@ export const Web3Provider = ({ children }: { children: ReactNode }) => {
   const [account, setAccount] = useState<string | null>(null);
   const [isWrongNetwork, setIsWrongNetwork] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
+  const [isDJ, setIsDJ] = useState(false); // ← ADD THIS STATE HERE
   const TARGET_CHAIN = "0x1"; // Ethereum Mainnet
 
   const connectWallet = async () => {
     const injected = (window as any).ethereum;
     if (!injected) {
-      alert("Install MetaMask or another web3 wallet (https://metamask.io)");
+      alert("Install MetaMask or another web3 wallet[](https://metamask.io)");
       return;
     }
 
@@ -62,14 +70,14 @@ export const Web3Provider = ({ children }: { children: ReactNode }) => {
           await reqTarget.request({ method: 'wallet_switchEthereumChain', params: [{ chainId: TARGET_CHAIN }] });
           setIsWrongNetwork(false);
         } catch (err: any) {
-          if (err && err.code === 4902) {
-            alert('Please add Ethereum Mainnet to your wallet.');
-          }
+          if (err.code === 4902) alert("Add Ethereum Mainnet to MetaMask.");
         }
       }
-    } catch (err: any) {
-      console.error("Wallet connect failed:", err);
-      if (err?.code !== 4001) alert("Connection failed: " + (err?.message || String(err)));
+
+      // Check DJ status after connect ← ADD THIS CALL HERE
+      checkDJStatus(address, provider);
+    } catch (err) {
+      console.error(err);
     } finally {
       setIsConnecting(false);
     }
@@ -78,6 +86,19 @@ export const Web3Provider = ({ children }: { children: ReactNode }) => {
   const disconnect = () => {
     setAccount(null);
     setIsWrongNetwork(false);
+    setIsDJ(false); // ← ADD THIS TO RESET DJ STATUS
+  };
+
+  // ADD THIS FUNCTION HERE
+  const checkDJStatus = async (addr: string, provider: ethers.BrowserProvider) => {
+    try {
+      const contract = new ethers.Contract(DJ_PASS_CONTRACT, DJ_PASS_ABI, provider);
+      const balance = await contract.balanceOf(addr);
+      setIsDJ(Number(balance) > 0);
+    } catch (err) {
+      console.error("DJ check failed:", err);
+      setIsDJ(false);
+    }
   };
 
   useEffect(() => {
@@ -115,7 +136,10 @@ export const Web3Provider = ({ children }: { children: ReactNode }) => {
       try {
         const provider = new ethers.BrowserProvider(selected as any);
         const accounts = await provider.listAccounts();
-        if (accounts.length > 0) setAccount(accounts[0].address);
+        if (accounts.length > 0) {
+          setAccount(accounts[0].address);
+          checkDJStatus(accounts[0].address, provider); // ← ADD THIS CALL HERE
+        }
       } catch (err) {
         console.log('Auto-connect skipped');
       }
@@ -142,6 +166,7 @@ export const Web3Provider = ({ children }: { children: ReactNode }) => {
       connectWallet,
       disconnect,
       isConnecting,
+      isDJ, // ← ADD THIS TO THE CONTEXT VALUE
     }}>
       {children}
     </Web3Context.Provider>
