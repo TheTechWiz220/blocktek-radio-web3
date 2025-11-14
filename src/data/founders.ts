@@ -1,3 +1,4 @@
+// src/data/founders.ts
 export type Founder = {
   name: string;
   role?: string;
@@ -15,7 +16,7 @@ export type Founder = {
 export const FOUNDERS: Founder[] = [
   {
     name: "The TechWiz",
-    role: "Founder & CTO",
+    role: "Founder & CTO",                     // ← Founder
     handle: "@thetechwiz220",
     twitter: "thetechwiz220",
     xUrl: "https://x.com/thetechwiz220",
@@ -24,11 +25,12 @@ export const FOUNDERS: Founder[] = [
     email: "hello@thetechwiz.dev",
     location: "Banjul, The Gambia",
     bio: "Blockchain developer and educator focused on building infrastructure and tools that make Web3 accessible. Leads technical strategy, product architecture, and developer community initiatives.",
-    image: "https://unavatar.io/twitter/thetechwiz220" // If not loading, replace with direct link or placeholder: "https://pbs.twimg.com/profile_images/your-id/image.jpg" or "https://via.placeholder.com/150?text=TTW"
+    // ← Direct path to the uploaded image
+    image: "/images/founders/techwiz-avatar.jpg"
   },
   {
     name: "Stan Munyasia",
-    role: "Advisor & Head of Content",
+    role: "Advisor & Head of Content",         // ← Advisor
     handle: "@stanmunyasia",
     twitter: "stanmunyasia",
     xUrl: "https://x.com/stanmunyasia",
