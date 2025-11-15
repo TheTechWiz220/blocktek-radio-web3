@@ -6,22 +6,16 @@ import {
   Headphones, Trophy, Wallet, Settings, LogOut, Lock,
   Mic, Send, Calendar, Users, Crown, User
 } from "lucide-react";
-import { useNavigate } from "react-router-dom";
-import Navigation from "@/components/Navigation";          // <-- NEW
+import Navigation from "@/components/Navigation";
 import { useState, useEffect } from "react";
 import { ethers } from "ethers";
 import * as api from "@/lib/api";
 import ProfileEditor from "@/components/ProfileEditor";
 import { useToast } from "@/components/ui/use-toast";
 
-/* --------------------------------------------------------------- */
-/* 1 Helper – format address                                      */
-/* --------------------------------------------------------------- */
 const formatAddress = (addr: string) => `${addr.slice(0, 6)}...${addr.slice(-4)}`;
 
-/* --------------------------------------------------------------- */
-/* 2 DJ-Pass contract – replace with real address                 */
-/* --------------------------------------------------------------- */
+// DJ-Pass contract – replace with real address when deployed
 const DJ_PASS_CONTRACT = "0xYourRealDJPassAddressHere";
 const DJ_PASS_ABI = ["function balanceOf(address owner) view returns (uint256)"];
 
@@ -34,17 +28,19 @@ const Dashboard = () => {
     isConnecting,
   } = useWeb3();
 
-  const navigate = useNavigate();
   const { toast } = useToast();
-
-  /* ------------------- State ------------------- */
   const [ethBalance, setEthBalance] = useState<string>("0.00");
   const [isDJ, setIsDJ] = useState<boolean>(false);
   const [djLoading, setDjLoading] = useState<boolean>(true);
   const [activeTab, setActiveTab] = useState<string>("overview");
-  const [showProfileEditor, setShowProfileEditor] = useState<boolean>(false); // NEW
 
-  /* ------------------- ETH balance ------------------- */
+  // NEW: Dashboard profile (avatar + name)
+  const [dashboardProfile, setDashboardProfile] = useState<{
+    displayName?: string;
+    avatarUrl?: string;
+  }>({});
+
+  // Load ETH balance
   useEffect(() => {
     const fetchBalance = async () => {
       if (!account || !window.ethereum) return;
@@ -59,7 +55,26 @@ const Dashboard = () => {
     fetchBalance();
   }, [account]);
 
-  /* ------------------- DJ-Pass check ------------------- */
+  // Load profile for dashboard
+  const loadProfile = async () => {
+    try {
+      const data = await api.getMe();
+      setDashboardProfile({
+        displayName: data.profile?.displayName,
+        avatarUrl: data.profile?.avatarUrl,
+      });
+    } catch (e) {
+      console.warn("Failed to load profile for dashboard");
+    }
+  };
+
+  useEffect(() => {
+    if (isConnected && account) {
+      loadProfile();
+    }
+  }, [isConnected, account]);
+
+  // Check DJ Pass NFT
   useEffect(() => {
     if (!account || !window.ethereum) {
       setDjLoading(false);
@@ -87,16 +102,13 @@ const Dashboard = () => {
     checkDJ();
   }, [account]);
 
-  /* ------------------- Wallet-required screen ------------------- */
   if (!isConnected || !account) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center p-4 pt-20">
         <Card className="p-8 text-center max-w-md w-full">
           <Lock className="w-16 h-16 mx-auto mb-4 text-muted-foreground" />
           <h2 className="text-2xl font-bold mb-2">Wallet Required</h2>
-          <p className="text-muted-foreground mb-6">
-            Connect your wallet to access your dashboard.
-          </p>
+          <p className="text-muted-foreground mb-6">Connect your wallet to access your dashboard.</p>
           <Button onClick={connectWallet} disabled={isConnecting} className="w-full">
             {isConnecting ? "Connecting…" : "Connect Wallet"}
           </Button>
@@ -105,7 +117,6 @@ const Dashboard = () => {
     );
   }
 
-  /* ------------------- DJ-Pass loading UI ------------------- */
   if (djLoading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center pt-20">
@@ -117,7 +128,6 @@ const Dashboard = () => {
     );
   }
 
-  /* ------------------- Shared data ------------------- */
   const stats = [
     { label: "Listening Time", value: "48h 12m", icon: Headphones },
     { label: "NFTs Owned", value: "3", icon: Trophy },
@@ -130,45 +140,44 @@ const Dashboard = () => {
     { title: "NFT Market Analysis", date: "Nov 12, 2025", duration: "1h" },
   ];
 
-  /* ------------------- Render ------------------- */
   return (
     <div className="min-h-screen bg-background">
-      {/* ---------- HEADER (Navigation) ---------- */}
       <Navigation />
 
       <div className="container mx-auto px-4 py-8 pt-24">
-
-        {/* ---------- Top bar (title + buttons) ---------- */}
+        {/* Top bar */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
-          <div>
-            <h1 className="text-4xl font-bold text-gradient flex items-center gap-2">
-              {isDJ ? <Mic className="w-10 h-10" /> : <Headphones className="w-10 h-10" />}
-              {isDJ ? "DJ Dashboard" : "Listener Dashboard"}
-              {isDJ && <Crown className="w-8 h-8 text-yellow-500" />}
-            </h1>
-            <p className="text-muted-foreground">
-              Welcome back, {formatAddress(account)}
-            </p>
+          <div className="flex items-center gap-4">
+            {/* Avatar */}
+            {dashboardProfile.avatarUrl ? (
+              <img
+                src={dashboardProfile.avatarUrl}
+                alt="avatar"
+                className="w-12 h-12 rounded-full object-cover"
+              />
+            ) : (
+              <div className="bg-muted w-12 h-12 rounded-full flex items-center justify-center">
+                <User className="w-6 h-6 text-muted-foreground" />
+              </div>
+            )}
+
+            <div>
+              <h1 className="text-4xl font-bold text-gradient flex items-center gap-2">
+                {isDJ ? <Mic className="w-10 h-10" /> : <Headphones className="w-10 h-10" />}
+                {isDJ ? "DJ Dashboard" : "Listener Dashboard"}
+                {isDJ && <Crown className="w-8 h-8 text-yellow-500" />}
+              </h1>
+              <p className="text-muted-foreground">
+                {dashboardProfile.displayName || formatAddress(account)}
+              </p>
+            </div>
           </div>
 
-          {/* ---- Right-hand button group ---- */}
           <div className="flex gap-2">
-            {/* Profile editor toggle */}
-            <Button
-              variant="outline"
-              onClick={() => setShowProfileEditor(!showProfileEditor)}
-              className="gap-2"
-            >
-              <User className="w-4 h-4" />
-              <span className="hidden sm:inline">
-                {showProfileEditor ? "Close" : "Edit Profile"}
-              </span>
-            </Button>
-
+            <ProfileEditor onUpdated={loadProfile} />
             <Button variant="outline" size="icon">
               <Settings className="w-5 h-5" />
             </Button>
-
             <Button variant="outline" onClick={disconnect} className="gap-2">
               <LogOut className="w-4 h-4" />
               <span className="hidden sm:inline">Disconnect</span>
@@ -176,15 +185,7 @@ const Dashboard = () => {
           </div>
         </div>
 
-        {/* ---------- Profile Editor (inline) ---------- */}
-        {showProfileEditor && (
-          <Card className="mb-8 p-6">
-            <h2 className="text-xl font-bold mb-4">Edit Profile</h2>
-            <ProfileEditor />
-          </Card>
-        )}
-
-        {/* ---------- DJ-only tabs ---------- */}
+        {/* DJ Tabs */}
         {isDJ && (
           <div className="flex gap-3 mb-6 border-b border-border overflow-x-auto">
             {["overview", "schedule", "fans", "tips"].map((t) => (
@@ -200,10 +201,9 @@ const Dashboard = () => {
           </div>
         )}
 
-        {/* ---------- Overview (always) ---------- */}
+        {/* Overview */}
         {activeTab === "overview" && (
           <>
-            {/* Stats */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
               {stats.map((s, i) => (
                 <Card key={i} className="p-6 bg-card/50 backdrop-blur-sm border-primary/20">
@@ -218,7 +218,6 @@ const Dashboard = () => {
               ))}
             </div>
 
-            {/* Recent streams */}
             <Card className="p-6 bg-card/50 backdrop-blur-sm border-primary/20 mb-8">
               <h2 className="text-xl font-bold mb-4">Recent Streams</h2>
               <div className="space-y-3">
@@ -229,27 +228,19 @@ const Dashboard = () => {
                   >
                     <div>
                       <p className="font-medium">{s.title}</p>
-                      <p className="text-sm text-muted-foreground">
-                        {s.date} • {s.duration}
-                      </p>
+                      <p className="text-sm text-muted-foreground">{s.date} • {s.duration}</p>
                     </div>
-                    <Button size="sm" variant="ghost">
-                      Replay
-                    </Button>
+                    <Button size="sm" variant="ghost">Replay</Button>
                   </div>
                 ))}
               </div>
             </Card>
 
-            {/* NFT collection */}
             <div>
               <h2 className="text-xl font-bold mb-4">Your NFT Collection</h2>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 {[1, 2, 3].map((i) => (
-                  <Card
-                    key={i}
-                    className="overflow-hidden bg-card/50 backdrop-blur-sm border-primary/20"
-                  >
+                  <Card key={i} className="overflow-hidden bg-card/50 backdrop-blur-sm border-primary/20">
                     <div className="bg-gradient-to-br from-purple-600 to-blue-600 h-32 flex items-center justify-center">
                       <Trophy className="w-12 h-12 text-white opacity-80" />
                     </div>
@@ -266,13 +257,10 @@ const Dashboard = () => {
               </div>
             </div>
 
-            {/* Go-Live card for DJs */}
             {isDJ && (
               <Card className="p-6 bg-gradient-to-r from-purple-600 to-pink-600 text-white mt-8">
                 <h3 className="text-xl font-bold mb-2">Go Live Now</h3>
-                <p className="mb-4">
-                  Start your show and earn real-time tips from fans!
-                </p>
+                <p className="mb-4">Start your show and earn real-time tips from fans!</p>
                 <Button variant="secondary" className="gap-2">
                   <Mic className="w-5 h-5" />
                   Launch Stream
@@ -282,7 +270,7 @@ const Dashboard = () => {
           </>
         )}
 
-        {/* ---------- DJ-only tabs (stubs) ---------- */}
+        {/* DJ-only tabs */}
         {activeTab === "schedule" && isDJ && (
           <Card className="p-6 bg-card/50 backdrop-blur-sm border-primary/20">
             <h2 className="text-xl font-bold mb-4">Show Schedule</h2>
