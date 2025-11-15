@@ -4,9 +4,10 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import {
   Headphones, Trophy, Wallet, Settings, LogOut, Lock,
-  Mic, Send, Calendar, Users, Crown
+  Mic, Send, Calendar, Users, Crown, User
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import Navigation from "@/components/Navigation";          // <-- NEW
 import { useState, useEffect } from "react";
 import { ethers } from "ethers";
 import * as api from "@/lib/api";
@@ -14,17 +15,15 @@ import ProfileEditor from "@/components/ProfileEditor";
 import { useToast } from "@/components/ui/use-toast";
 
 /* --------------------------------------------------------------- */
-/* 1 Helper – format address (must be inside the file)            */
+/* 1 Helper – format address                                      */
 /* --------------------------------------------------------------- */
 const formatAddress = (addr: string) => `${addr.slice(0, 6)}...${addr.slice(-4)}`;
 
 /* --------------------------------------------------------------- */
-/* 2 DJ-Pass contract – **REPLACE** with your real address        */
+/* 2 DJ-Pass contract – replace with real address                 */
 /* --------------------------------------------------------------- */
-const DJ_PASS_CONTRACT = "0xYourRealDJPassAddressHere";   // <-- CHANGE THIS
-const DJ_PASS_ABI = [
-  "function balanceOf(address owner) view returns (uint256)"
-];
+const DJ_PASS_CONTRACT = "0xYourRealDJPassAddressHere";
+const DJ_PASS_ABI = ["function balanceOf(address owner) view returns (uint256)"];
 
 const Dashboard = () => {
   const {
@@ -43,6 +42,7 @@ const Dashboard = () => {
   const [isDJ, setIsDJ] = useState<boolean>(false);
   const [djLoading, setDjLoading] = useState<boolean>(true);
   const [activeTab, setActiveTab] = useState<string>("overview");
+  const [showProfileEditor, setShowProfileEditor] = useState<boolean>(false); // NEW
 
   /* ------------------- ETH balance ------------------- */
   useEffect(() => {
@@ -69,24 +69,21 @@ const Dashboard = () => {
     const checkDJ = async () => {
       setDjLoading(true);
       try {
-        // ---- If you still have the placeholder, treat as non-DJ ----
         if (DJ_PASS_CONTRACT.toLowerCase().includes("your")) {
           setIsDJ(false);
           return;
         }
-
         const provider = new ethers.BrowserProvider(window.ethereum);
         const contract = new ethers.Contract(DJ_PASS_CONTRACT, DJ_PASS_ABI, provider);
         const bal = await contract.balanceOf(account);
         setIsDJ(bal > 0);
       } catch (err) {
-        console.warn("DJ-Pass check failed (contract not deployed yet):", err);
+        console.warn("DJ-Pass check failed:", err);
         setIsDJ(false);
       } finally {
         setDjLoading(false);
       }
     };
-
     checkDJ();
   }, [account]);
 
@@ -120,7 +117,7 @@ const Dashboard = () => {
     );
   }
 
-  /* ------------------- Shared stats ------------------- */
+  /* ------------------- Shared data ------------------- */
   const stats = [
     { label: "Listening Time", value: "48h 12m", icon: Headphones },
     { label: "NFTs Owned", value: "3", icon: Trophy },
@@ -135,10 +132,13 @@ const Dashboard = () => {
 
   /* ------------------- Render ------------------- */
   return (
-    <div className="min-h-screen bg-background pt-20">
-      <div className="container mx-auto px-4 py-8">
+    <div className="min-h-screen bg-background">
+      {/* ---------- HEADER (Navigation) ---------- */}
+      <Navigation />
 
-        {/* Header */}
+      <div className="container mx-auto px-4 py-8 pt-24">
+
+        {/* ---------- Top bar (title + buttons) ---------- */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
           <div>
             <h1 className="text-4xl font-bold text-gradient flex items-center gap-2">
@@ -151,10 +151,24 @@ const Dashboard = () => {
             </p>
           </div>
 
+          {/* ---- Right-hand button group ---- */}
           <div className="flex gap-2">
+            {/* Profile editor toggle */}
+            <Button
+              variant="outline"
+              onClick={() => setShowProfileEditor(!showProfileEditor)}
+              className="gap-2"
+            >
+              <User className="w-4 h-4" />
+              <span className="hidden sm:inline">
+                {showProfileEditor ? "Close" : "Edit Profile"}
+              </span>
+            </Button>
+
             <Button variant="outline" size="icon">
               <Settings className="w-5 h-5" />
             </Button>
+
             <Button variant="outline" onClick={disconnect} className="gap-2">
               <LogOut className="w-4 h-4" />
               <span className="hidden sm:inline">Disconnect</span>
@@ -162,7 +176,15 @@ const Dashboard = () => {
           </div>
         </div>
 
-        {/* DJ-only tabs */}
+        {/* ---------- Profile Editor (inline) ---------- */}
+        {showProfileEditor && (
+          <Card className="mb-8 p-6">
+            <h2 className="text-xl font-bold mb-4">Edit Profile</h2>
+            <ProfileEditor />
+          </Card>
+        )}
+
+        {/* ---------- DJ-only tabs ---------- */}
         {isDJ && (
           <div className="flex gap-3 mb-6 border-b border-border overflow-x-auto">
             {["overview", "schedule", "fans", "tips"].map((t) => (
@@ -290,12 +312,6 @@ const Dashboard = () => {
             </Button>
           </Card>
         )}
-
-        {/* Keep your existing profile editor */}
-        <Card className="mt-8 p-6">
-          <h2 className="text-xl font-bold mb-4">Profile Editor</h2>
-          <ProfileEditor />
-        </Card>
       </div>
     </div>
   );
