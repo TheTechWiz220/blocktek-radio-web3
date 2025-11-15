@@ -13,14 +13,14 @@ import * as api from "@/lib/api";
 import ProfileEditor from "@/components/ProfileEditor";
 import { useToast } from "@/components/ui/use-toast";
 
-/* ------------------------------------------------------------------ */
-/* 1 Helper – format address                                            */
-/* ------------------------------------------------------------------ */
+/* --------------------------------------------------------------- */
+/* 1 Helper – format address (must be inside the file)            */
+/* --------------------------------------------------------------- */
 const formatAddress = (addr: string) => `${addr.slice(0, 6)}...${addr.slice(-4)}`;
 
-/* ------------------------------------------------------------------ */
-/* 2 DJ-Pass contract – replace with your real address               */
-/* ------------------------------------------------------------------ */
+/* --------------------------------------------------------------- */
+/* 2 DJ-Pass contract – **REPLACE** with your real address        */
+/* --------------------------------------------------------------- */
 const DJ_PASS_CONTRACT = "0xYourRealDJPassAddressHere";   // <-- CHANGE THIS
 const DJ_PASS_ABI = [
   "function balanceOf(address owner) view returns (uint256)"
@@ -38,14 +38,13 @@ const Dashboard = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
 
+  /* ------------------- State ------------------- */
   const [ethBalance, setEthBalance] = useState<string>("0.00");
   const [isDJ, setIsDJ] = useState<boolean>(false);
   const [djLoading, setDjLoading] = useState<boolean>(true);
   const [activeTab, setActiveTab] = useState<string>("overview");
 
-  /* --------------------------------------------------------------- */
-  /* 3 Fetch ETH balance                                            */
-  /* --------------------------------------------------------------- */
+  /* ------------------- ETH balance ------------------- */
   useEffect(() => {
     const fetchBalance = async () => {
       if (!account || !window.ethereum) return;
@@ -60,9 +59,7 @@ const Dashboard = () => {
     fetchBalance();
   }, [account]);
 
-  /* --------------------------------------------------------------- */
-  /* 4 Check DJ-Pass NFT (only run when wallet is connected)       */
-  /* --------------------------------------------------------------- */
+  /* ------------------- DJ-Pass check ------------------- */
   useEffect(() => {
     if (!account || !window.ethereum) {
       setDjLoading(false);
@@ -72,7 +69,7 @@ const Dashboard = () => {
     const checkDJ = async () => {
       setDjLoading(true);
       try {
-        // If you still have a placeholder address, skip the call
+        // ---- If you still have the placeholder, treat as non-DJ ----
         if (DJ_PASS_CONTRACT.toLowerCase().includes("your")) {
           setIsDJ(false);
           return;
@@ -83,7 +80,7 @@ const Dashboard = () => {
         const bal = await contract.balanceOf(account);
         setIsDJ(bal > 0);
       } catch (err) {
-        console.warn("DJ-Pass check failed (maybe contract not deployed yet):", err);
+        console.warn("DJ-Pass check failed (contract not deployed yet):", err);
         setIsDJ(false);
       } finally {
         setDjLoading(false);
@@ -93,9 +90,7 @@ const Dashboard = () => {
     checkDJ();
   }, [account]);
 
-  /* --------------------------------------------------------------- */
-  /* 5 Wallet-required screen                                       */
-  /* --------------------------------------------------------------- */
+  /* ------------------- Wallet-required screen ------------------- */
   if (!isConnected || !account) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center p-4 pt-20">
@@ -113,23 +108,19 @@ const Dashboard = () => {
     );
   }
 
-  /* --------------------------------------------------------------- */
-  /* 6 Loading while we verify DJ-Pass                              */
-  /* --------------------------------------------------------------- */
+  /* ------------------- DJ-Pass loading UI ------------------- */
   if (djLoading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center pt-20">
         <div className="text-center">
           <div className="animate-spin w-12 h-12 border-4 border-primary border-t-transparent rounded-full mx-auto mb-4" />
-          <p>Checking DJ-Pass…</p>
+          <p className="text-muted-foreground">Checking DJ-Pass…</p>
         </div>
       </div>
     );
   }
 
-  /* --------------------------------------------------------------- */
-  /* 7 Stats (shared)                                               */
-  /* --------------------------------------------------------------- */
+  /* ------------------- Shared stats ------------------- */
   const stats = [
     { label: "Listening Time", value: "48h 12m", icon: Headphones },
     { label: "NFTs Owned", value: "3", icon: Trophy },
@@ -142,9 +133,7 @@ const Dashboard = () => {
     { title: "NFT Market Analysis", date: "Nov 12, 2025", duration: "1h" },
   ];
 
-  /* --------------------------------------------------------------- */
-  /* 8 Render                                                       */
-  /* --------------------------------------------------------------- */
+  /* ------------------- Render ------------------- */
   return (
     <div className="min-h-screen bg-background pt-20">
       <div className="container mx-auto px-4 py-8">
@@ -189,7 +178,7 @@ const Dashboard = () => {
           </div>
         )}
 
-        {/* Overview (always visible) */}
+        {/* ---------- Overview (always) ---------- */}
         {activeTab === "overview" && (
           <>
             {/* Stats */}
@@ -271,7 +260,7 @@ const Dashboard = () => {
           </>
         )}
 
-        {/* DJ-only tabs – you can flesh these out later */}
+        {/* ---------- DJ-only tabs (stubs) ---------- */}
         {activeTab === "schedule" && isDJ && (
           <Card className="p-6 bg-card/50 backdrop-blur-sm border-primary/20">
             <h2 className="text-xl font-bold mb-4">Show Schedule</h2>
@@ -302,7 +291,7 @@ const Dashboard = () => {
           </Card>
         )}
 
-        {/* Keep your existing profile editor / credential logic */}
+        {/* Keep your existing profile editor */}
         <Card className="mt-8 p-6">
           <h2 className="text-xl font-bold mb-4">Profile Editor</h2>
           <ProfileEditor />
