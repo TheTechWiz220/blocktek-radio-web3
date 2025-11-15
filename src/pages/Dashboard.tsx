@@ -1,7 +1,8 @@
+// src/components/Dashboard.tsx
 import { useWeb3 } from "@/context/Web3Context";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Headphones, Trophy, Wallet, Settings, LogOut, Lock, Mic, Send } from "lucide-react";
+import { Headphones, Trophy, Wallet, Settings, LogOut, Lock, Mic, Send, Calendar, Users } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import Navigation from "@/components/Navigation";
 import { useState, useEffect } from "react";
@@ -13,15 +14,16 @@ import { useToast } from "@/components/ui/use-toast";
 import { verifyMessage } from "ethers";
 
 const Dashboard = () => {
-  const { account, disconnect, isConnected, connectWallet, isConnecting, isDJ } = useWeb3(); // ← ADD isDJ HERE
+  const { account, disconnect, isConnected, connectWallet, isConnecting, isDJ } = useWeb3();
   const navigate = useNavigate();
   const [ethBalance, setEthBalance] = useState<string>("0.00");
+  const [activeTab, setActiveTab] = useState("overview");
 
   useEffect(() => {
     const fetchBalance = async () => {
-      if (account && (window as any).ethereum) {
+      if (account && window.ethereum) {
         try {
-          const provider = new ethers.BrowserProvider((window as any).ethereum);
+          const provider = new ethers.BrowserProvider(window.ethereum);
           const balance = await provider.getBalance(account);
           const formatted = parseFloat(ethers.formatEther(balance)).toFixed(4);
           setEthBalance(formatted);
@@ -85,7 +87,7 @@ const Dashboard = () => {
     }
     try {
       const message = `Sign this message to link your wallet to your profile. Nonce: ${Date.now()}`;
-      const signer = await new ethers.BrowserProvider((window as any).ethereum).getSigner();
+      const signer = await new ethers.BrowserProvider(window.ethereum).getSigner();
       const signature = await signer.signMessage(message);
       const data = await api.linkWallet(serverProfile.id, account, message, signature);
       setLinkedWallet(data);
@@ -110,60 +112,40 @@ const Dashboard = () => {
 
   if (!isConnected || !account) {
     return (
-      <div className="pt-20 text-center">
-        <Lock className="w-16 h-16 mx-auto text-muted-foreground mb-4" />
-        <h2 className="text-2xl font-bold mb-2">Wallet Required</h2>
-        <p className="text-muted-foreground mb-6">Connect your wallet to access your dashboard.</p>
-        <Button onClick={connectWallet} disabled={isConnecting}>
-          {isConnecting ? "Connecting..." : "Connect Wallet"}
-        </Button>
+      <div className="min-h-screen bg-background flex items-center justify-center p-4 pt-20">
+        <Card className="p-8 text-center max-w-md w-full">
+          <Lock className="w-16 h-16 mx-auto mb-4 text-muted-foreground" />
+          <h2 className="text-2xl font-bold mb-2">Wallet Required</h2>
+          <p className="text-muted-foreground mb-6">Connect your wallet to access your dashboard.</p>
+          <Button onClick={connectWallet} disabled={isConnecting} className="w-full">
+            {isConnecting ? "Connecting..." : "Connect Wallet"}
+          </Button>
+        </Card>
       </div>
     );
   }
 
-  // ADD NFT GATE HERE: If not isDJ, show mint prompt
-  if (!isDJ) {
-    return (
-      <div className="pt-20 container mx-auto px-4 text-center">
-        <Lock className="w-16 h-16 mx-auto text-yellow-500 mb-4" />
-        <h2 className="text-3xl font-bold mb-4">DJ Pass Required</h2>
-        <p className="text-muted-foreground mb-6">
-          Mint a <strong>BlockTek DJ Pass NFT</strong> to unlock premium features, schedule shows, and earn tips.
-        </p>
-        <Button onClick={() => navigate("/#nft")} className="gap-2">
-          <Trophy className="w-5 h-5" />
-          Mint DJ Pass
-        </Button>
-      </div>
-    );
-  }
-
-  // DJ MODE UNLOCKED (Your existing premium content below)
-  // ... (Your existing code: stats, recent streams, NFT collection, etc.)
+  // Stats Grid
   const stats = [
-    { label: "ETH Balance", value: `${ethBalance} ETH`, icon: Wallet },
     { label: "Listening Time", value: "48h 12m", icon: Headphones },
     { label: "NFTs Owned", value: "3", icon: Trophy },
+    { label: "ETH Balance", value: `${ethBalance} ETH`, icon: Wallet },
   ];
 
   const recentStreams = [
-    { title: "Web3 Evening Mix", date: "Nov 10, 2025", duration: "2h 15m" },
-    { title: "NFT Market Analysis", date: "Nov 9, 2025", duration: "1h 30m" },
-    { title: "Blockchain Morning Brief", date: "Nov 8, 2025", duration: "45m" },
+    { title: "Crypto Market Updates", date: "Nov 14, 2025", duration: "1h 30m" },
+    { title: "Blockchain Morning Brief", date: "Nov 13, 2025", duration: "45m" },
+    { title: "NFT Market Analysis", date: "Nov 12, 2025", duration: "1h" },
   ];
 
   return (
     <div className="min-h-screen bg-background pt-20">
-      <Navigation />
       <div className="container mx-auto px-4 py-8">
         {/* Header */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
           <div>
-            <h1 className="text-4xl font-bold flex items-center gap-3">
-              <Mic className="w-10 h-10 text-green-500" />
-              DJ Dashboard
-            </h1>
-            <p className="text-muted-foreground">Welcome back, {account.slice(0, 6)}...{account.slice(-4)}</p>
+            <h1 className="text-4xl font-bold text-gradient">{isDJ ? "DJ Dashboard" : "Listener Dashboard"}</h1>
+            <p className="text-muted-foreground">Welcome back, {formatAddress(account)}</p>
           </div>
           <div className="flex gap-3">
             <Button variant="outline" size="icon">
@@ -176,72 +158,125 @@ const Dashboard = () => {
           </div>
         </div>
 
-        {/* Stats Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
-          {stats.map((stat, i) => (
-            <Card key={i} className="p-6 bg-card/50 backdrop-blur-sm border-primary/20">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-muted-foreground">{stat.label}</p>
-                  <p className="text-2xl font-bold mt-1">{stat.value}</p>
-                </div>
-                <stat.icon className="w-8 h-8 text-primary opacity-70" />
-              </div>
-            </Card>
-          ))}
-        </div>
-
-        {/* Recent Activity */}
-        <Card className="p-6 bg-card/50 backdrop-blur-sm border-primary/20 mb-8">
-          <h2 className="text-xl font-bold mb-4">Recent Streams</h2>
-          <div className="space-y-3">
-            {recentStreams.map((stream, i) => (
-              <div key={i} className="flex items-center justify-between py-3 border-b border-border/50 last:border-0">
-                <div>
-                  <p className="font-medium">{stream.title}</p>
-                  <p className="text-sm text-muted-foreground">{stream.date} • {stream.duration}</p>
-                </div>
-                <Button size="sm" variant="ghost">Replay</Button>
-              </div>
+        {/* Tabs (DJ only) */}
+        {isDJ && (
+          <div className="flex gap-3 mb-6 border-b border-border">
+            {["overview", "schedule", "fans", "tips"].map((tab) => (
+              <Button
+                key={tab}
+                variant="ghost"
+                onClick={() => setActiveTab(tab)}
+                className={activeTab === tab ? "border-b-2 border-primary" : ""}
+              >
+                {tab.charAt(0).toUpperCase() + tab.slice(1)}
+              </Button>
             ))}
           </div>
-        </Card>
+        )}
 
-        {/* NFT Collection */}
-        <div>
-          <h2 className="text-xl font-bold mb-4">Your NFT Collection</h2>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {[1, 2, 3].map((i) => (
-              <Card key={i} className="overflow-hidden bg-card/50 backdrop-blur-sm border-primary/20">
-                <div className="bg-gradient-to-br from-purple-600 to-blue-600 h-32 flex items-center justify-center">
-                  <Trophy className="w-12 h-12 text-white opacity-80" />
-                </div>
-                <div className="p-4">
-                  <p className="font-semibold text-sm">BlockTek Pass #{i}</p>
-                  <p className="text-xs text-muted-foreground">Premium Access</p>
-                </div>
+        {/* Overview */}
+        {activeTab === "overview" && (
+          <>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
+              {stats.map((stat, i) => (
+                <Card key={i} className="p-6 bg-card/50 backdrop-blur-sm border-primary/20">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm text-muted-foreground">{stat.label}</p>
+                      <p className="text-2xl font-bold mt-1">{stat.value}</p>
+                    </div>
+                    <stat.icon className="w-8 h-8 text-primary opacity-70" />
+                  </div>
+                </Card>
+              ))}
+            </div>
+
+            <Card className="p-6 bg-card/50 backdrop-blur-sm border-primary/20 mb-8">
+              <h2 className="text-xl font-bold mb-4">Recent Streams</h2>
+              <div className="space-y-3">
+                {recentStreams.map((stream, i) => (
+                  <div key={i} className="flex items-center justify-between py-3 border-b border-border/50 last:border-0">
+                    <div>
+                      <p className="font-medium">{stream.title}</p>
+                      <p className="text-sm text-muted-foreground">{stream.date} • {stream.duration}</p>
+                    </div>
+                    <Button size="sm" variant="ghost">Replay</Button>
+                  </div>
+                ))}
+              </div>
+            </Card>
+
+            <div>
+              <h2 className="text-xl font-bold mb-4">Your NFT Collection</h2>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                {[1, 2, 3].map((i) => (
+                  <Card key={i} className="overflow-hidden bg-card/50 backdrop-blur-sm border-primary/20">
+                    <div className="bg-gradient-to-br from-purple-600 to-blue-600 h-32 flex items-center justify-center">
+                      <Trophy className="w-12 h-12 text-white opacity-80" />
+                    </div>
+                    <div className="p-4">
+                      <p className="font-semibold text-sm">BlockTek Pass #{i}</p>
+                      <p className="text-xs text-muted-foreground">Premium Access</p>
+                    </div>
+                  </Card>
+                ))}
+                <Card className="border-dashed border-2 border-primary/30 flex flex-col items-center justify-center p-6 cursor-pointer hover:border-primary/60 transition">
+                  <Trophy className="w-8 h-8 text-muted-foreground mb-2" />
+                  <p className="text-sm font-medium">Mint More</p>
+                </Card>
+              </div>
+            </div>
+
+            {isDJ && (
+              <Card className="p-6 bg-gradient-to-r from-purple-600 to-pink-600 text-white mt-8">
+                <h3 className="text-xl font-bold mb-2">Go Live Now</h3>
+                <p className="mb-4">Start your show and earn real-time tips from fans on Abstract Chain!</p>
+                <Button variant="secondary" className="gap-2">
+                  <Mic className="w-5 h-5" />
+                  Launch Stream
+                </Button>
               </Card>
-            ))}
-            <Card className="border-dashed border-2 border-primary/30 flex flex-col items-center justify-center p-6 cursor-pointer hover:border-primary/60 transition">
-              <Trophy className="w-8 h-8 text-muted-foreground mb-2" />
-              <p className="text-sm font-medium">Mint More</p>
-            </Card>
-          </div>
-        </div>
+            )}
+          </>
+        )}
 
-        {/* Go Live Card */}
-        <Card className="p-6 bg-gradient-to-r from-purple-600 to-pink-600 text-white mt-8">
-          <h3 className="text-xl font-bold mb-2">Start Your Show</h3>
-          <p className="mb-4">Go live and earn real-time tips from fans on Abstract Chain!</p>
-          <Button variant="secondary" className="gap-2">
-            <Mic className="w-5 h-5" />
-            Launch Stream
-          </Button>
-        </Card>
+        {/* Schedule Tab (DJ only) */}
+        {activeTab === "schedule" && isDJ && (
+          <Card className="p-6 bg-card/50 backdrop-blur-sm border-primary/20">
+            <h2 className="text-xl font-bold mb-4">Show Schedule</h2>
+            {/* Add calendar or list of upcoming shows */}
+            <Button className="gap-2">
+              <Calendar className="w-4 h-4" />
+              Add New Show
+            </Button>
+          </Card>
+        )}
 
-        {/* Your Existing Profile Editor/Auth Logic Here */}
-        {/* ... (paste your truncated code for credentialsUser, serverProfile, linkedWallet, etc.) */}
-        {/* For example: */}
+        {/* Fans Tab (DJ only) */}
+        {activeTab === "fans" && isDJ && (
+          <Card className="p-6 bg-card/50 backdrop-blur-sm border-primary/20">
+            <h2 className="text-xl font-bold mb-4">Fan Leaderboard</h2>
+            {/* Add fan list with tips */}
+            <Button className="gap-2">
+              <Users className="w-4 h-4" />
+              Invite Fans
+            </Button>
+          </Card>
+        )}
+
+        {/* Tips Tab (DJ only) */}
+        {activeTab === "tips" && isDJ && (
+          <Card className="p-6 bg-card/50 backdrop-blur-sm border-primary/20">
+            <h2 className="text-xl font-bold mb-4">Tips & Earnings</h2>
+            {/* Add tip history */}
+            <Button className="gap-2">
+              <Send className="w-4 h-4" />
+              Withdraw Earnings
+            </Button>
+          </Card>
+        )}
+
+        {/* Profile Editor */}
         <Card className="mt-8 p-6">
           <h2 className="text-xl font-bold mb-4">Profile Editor</h2>
           <ProfileEditor />
