@@ -23,7 +23,6 @@ interface Props {
 export default function ProfileEditor({ onUpdated }: Props) {
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
-
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
 
@@ -37,9 +36,6 @@ export default function ProfileEditor({ onUpdated }: Props) {
     bio: "",
   });
 
-  /* --------------------------------------------------------------- */
-  /* Load current profile when dialog opens                         */
-  /* --------------------------------------------------------------- */
   useEffect(() => {
     if (!open) return;
     let mounted = true;
@@ -57,14 +53,9 @@ export default function ProfileEditor({ onUpdated }: Props) {
         console.warn("Failed to load profile", e);
       }
     })();
-    return () => {
-      mounted = false;
-    };
+    return () => { mounted = false; };
   }, [open]);
 
-  /* --------------------------------------------------------------- */
-  /* Avatar upload                                                   */
-  /* --------------------------------------------------------------- */
   const handleFile = async (file?: File) => {
     if (!file) return;
     if (file.size > 5 * 1024 * 1024) {
@@ -94,9 +85,6 @@ export default function ProfileEditor({ onUpdated }: Props) {
     }
   };
 
-  /* --------------------------------------------------------------- */
-  /* Save profile                                                    */
-  /* --------------------------------------------------------------- */
   const handleSave = async () => {
     setLoading(true);
     try {
@@ -134,7 +122,6 @@ export default function ProfileEditor({ onUpdated }: Props) {
         </DialogHeader>
 
         <div className="grid gap-4 py-4">
-          {/* Avatar + Upload */}
           <div className="flex items-center gap-4">
             <Avatar className="h-20 w-20">
               <AvatarImage src={profile.avatarUrl} alt="avatar" />
@@ -169,7 +156,6 @@ export default function ProfileEditor({ onUpdated }: Props) {
             </div>
           </div>
 
-          {/* Bio */}
           <Textarea
             placeholder="Bio"
             rows={4}
