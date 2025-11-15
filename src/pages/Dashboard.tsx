@@ -2,130 +2,134 @@
 import { useWeb3 } from "@/context/Web3Context";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Headphones, Trophy, Wallet, Settings, LogOut, Lock, Mic, Send, Calendar, Users } from "lucide-react";
+import {
+  Headphones, Trophy, Wallet, Settings, LogOut, Lock,
+  Mic, Send, Calendar, Users, Crown
+} from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import Navigation from "@/components/Navigation";
 import { useState, useEffect } from "react";
 import { ethers } from "ethers";
-import CredentialsAuth from "@/components/CredentialsAuth";
 import * as api from "@/lib/api";
 import ProfileEditor from "@/components/ProfileEditor";
 import { useToast } from "@/components/ui/use-toast";
-import { verifyMessage } from "ethers";
+
+/* ------------------------------------------------------------------ */
+/* 1 Helper – format address                                            */
+/* ------------------------------------------------------------------ */
+const formatAddress = (addr: string) => `${addr.slice(0, 6)}...${addr.slice(-4)}`;
+
+/* ------------------------------------------------------------------ */
+/* 2 DJ-Pass contract – replace with your real address               */
+/* ------------------------------------------------------------------ */
+const DJ_PASS_CONTRACT = "0xYourRealDJPassAddressHere";   // <-- CHANGE THIS
+const DJ_PASS_ABI = [
+  "function balanceOf(address owner) view returns (uint256)"
+];
 
 const Dashboard = () => {
-  const { account, disconnect, isConnected, connectWallet, isConnecting, isDJ } = useWeb3();
-  const navigate = useNavigate();
-  const [ethBalance, setEthBalance] = useState<string>("0.00");
-  const [activeTab, setActiveTab] = useState("overview");
+  const {
+    account,
+    disconnect,
+    isConnected,
+    connectWallet,
+    isConnecting,
+  } = useWeb3();
 
+  const navigate = useNavigate();
+  const { toast } = useToast();
+
+  const [ethBalance, setEthBalance] = useState<string>("0.00");
+  const [isDJ, setIsDJ] = useState<boolean>(false);
+  const [djLoading, setDjLoading] = useState<boolean>(true);
+  const [activeTab, setActiveTab] = useState<string>("overview");
+
+  /* --------------------------------------------------------------- */
+  /* 3 Fetch ETH balance                                            */
+  /* --------------------------------------------------------------- */
   useEffect(() => {
     const fetchBalance = async () => {
-      if (account && window.ethereum) {
-        try {
-          const provider = new ethers.BrowserProvider(window.ethereum);
-          const balance = await provider.getBalance(account);
-          const formatted = parseFloat(ethers.formatEther(balance)).toFixed(4);
-          setEthBalance(formatted);
-        } catch (error) {
-          console.error("Failed to fetch balance:", error);
-        }
+      if (!account || !window.ethereum) return;
+      try {
+        const provider = new ethers.BrowserProvider(window.ethereum);
+        const bal = await provider.getBalance(account);
+        setEthBalance(parseFloat(ethers.formatEther(bal)).toFixed(4));
+      } catch (e) {
+        console.error(e);
       }
     };
-    
     fetchBalance();
   }, [account]);
 
-  // NOT AUTHENTICATED → Show lock screen
-  const [credentialsUser, setCredentialsUser] = useState<string | null>(null);
-  const [serverProfile, setServerProfile] = useState<any | null>(null);
-
+  /* --------------------------------------------------------------- */
+  /* 4 Check DJ-Pass NFT (only run when wallet is connected)       */
+  /* --------------------------------------------------------------- */
   useEffect(() => {
-    let mounted = true;
-    (async () => {
+    if (!account || !window.ethereum) {
+      setDjLoading(false);
+      return;
+    }
+
+    const checkDJ = async () => {
+      setDjLoading(true);
       try {
-        const data = await api.getMe();
-        if (!mounted) return;
-        const p = data.profile;
-        setServerProfile(p || null);
-        setCredentialsUser(p?.email || null);
-      } catch (e) {
-        // not authenticated
-        setServerProfile(null);
-        setCredentialsUser(null);
-      }
-    })();
-    return () => { mounted = false; };
-  }, []);
-
-  // track linked wallet for the credential user
-  const [linkedWallet, setLinkedWallet] = useState<any | null>(null);
-  const { toast } = useToast();
-
-  useEffect(() => {
-    const fetchLinkedWallet = async () => {
-      if (serverProfile?.id) {
-        try {
-          const data = await api.getLinkedWallets(serverProfile.id);
-          setLinkedWallet(data);
-        } catch (error) {
-          console.error("Failed to fetch linked wallet:", error);
+        // If you still have a placeholder address, skip the call
+        if (DJ_PASS_CONTRACT.toLowerCase().includes("your")) {
+          setIsDJ(false);
+          return;
         }
+
+        const provider = new ethers.BrowserProvider(window.ethereum);
+        const contract = new ethers.Contract(DJ_PASS_CONTRACT, DJ_PASS_ABI, provider);
+        const bal = await contract.balanceOf(account);
+        setIsDJ(bal > 0);
+      } catch (err) {
+        console.warn("DJ-Pass check failed (maybe contract not deployed yet):", err);
+        setIsDJ(false);
+      } finally {
+        setDjLoading(false);
       }
     };
-    fetchLinkedWallet();
-  }, [serverProfile]);
 
-  const linkWallet = async () => {
-    if (!account) {
-      toast({ title: "Connect your wallet first" });
-      return;
-    }
-    if (!serverProfile?.id) {
-      toast({ title: "Authenticate with credentials first" });
-      return;
-    }
-    try {
-      const message = `Sign this message to link your wallet to your profile. Nonce: ${Date.now()}`;
-      const signer = await new ethers.BrowserProvider(window.ethereum).getSigner();
-      const signature = await signer.signMessage(message);
-      const data = await api.linkWallet(serverProfile.id, account, message, signature);
-      setLinkedWallet(data);
-      toast({ title: "Wallet linked successfully" });
-    } catch (error) {
-      console.error("Failed to link wallet:", error);
-      toast({ title: "Failed to link wallet" });
-    }
-  };
+    checkDJ();
+  }, [account]);
 
-  const unlinkWallet = async () => {
-    if (!linkedWallet?.id) return;
-    try {
-      await api.unlinkWallet(linkedWallet.id);
-      setLinkedWallet(null);
-      toast({ title: "Wallet unlinked successfully" });
-    } catch (error) {
-      console.error("Failed to unlink wallet:", error);
-      toast({ title: "Failed to unlink wallet" });
-    }
-  };
-
+  /* --------------------------------------------------------------- */
+  /* 5 Wallet-required screen                                       */
+  /* --------------------------------------------------------------- */
   if (!isConnected || !account) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center p-4 pt-20">
         <Card className="p-8 text-center max-w-md w-full">
           <Lock className="w-16 h-16 mx-auto mb-4 text-muted-foreground" />
           <h2 className="text-2xl font-bold mb-2">Wallet Required</h2>
-          <p className="text-muted-foreground mb-6">Connect your wallet to access your dashboard.</p>
+          <p className="text-muted-foreground mb-6">
+            Connect your wallet to access your dashboard.
+          </p>
           <Button onClick={connectWallet} disabled={isConnecting} className="w-full">
-            {isConnecting ? "Connecting..." : "Connect Wallet"}
+            {isConnecting ? "Connecting…" : "Connect Wallet"}
           </Button>
         </Card>
       </div>
     );
   }
 
-  // Stats Grid
+  /* --------------------------------------------------------------- */
+  /* 6 Loading while we verify DJ-Pass                              */
+  /* --------------------------------------------------------------- */
+  if (djLoading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center pt-20">
+        <div className="text-center">
+          <div className="animate-spin w-12 h-12 border-4 border-primary border-t-transparent rounded-full mx-auto mb-4" />
+          <p>Checking DJ-Pass…</p>
+        </div>
+      </div>
+    );
+  }
+
+  /* --------------------------------------------------------------- */
+  /* 7 Stats (shared)                                               */
+  /* --------------------------------------------------------------- */
   const stats = [
     { label: "Listening Time", value: "48h 12m", icon: Headphones },
     { label: "NFTs Owned", value: "3", icon: Trophy },
@@ -138,16 +142,27 @@ const Dashboard = () => {
     { title: "NFT Market Analysis", date: "Nov 12, 2025", duration: "1h" },
   ];
 
+  /* --------------------------------------------------------------- */
+  /* 8 Render                                                       */
+  /* --------------------------------------------------------------- */
   return (
     <div className="min-h-screen bg-background pt-20">
       <div className="container mx-auto px-4 py-8">
+
         {/* Header */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
           <div>
-            <h1 className="text-4xl font-bold text-gradient">{isDJ ? "DJ Dashboard" : "Listener Dashboard"}</h1>
-            <p className="text-muted-foreground">Welcome back, {formatAddress(account)}</p>
+            <h1 className="text-4xl font-bold text-gradient flex items-center gap-2">
+              {isDJ ? <Mic className="w-10 h-10" /> : <Headphones className="w-10 h-10" />}
+              {isDJ ? "DJ Dashboard" : "Listener Dashboard"}
+              {isDJ && <Crown className="w-8 h-8 text-yellow-500" />}
+            </h1>
+            <p className="text-muted-foreground">
+              Welcome back, {formatAddress(account)}
+            </p>
           </div>
-          <div className="flex gap-3">
+
+          <div className="flex gap-2">
             <Button variant="outline" size="icon">
               <Settings className="w-5 h-5" />
             </Button>
@@ -158,59 +173,72 @@ const Dashboard = () => {
           </div>
         </div>
 
-        {/* Tabs (DJ only) */}
+        {/* DJ-only tabs */}
         {isDJ && (
-          <div className="flex gap-3 mb-6 border-b border-border">
-            {["overview", "schedule", "fans", "tips"].map((tab) => (
+          <div className="flex gap-3 mb-6 border-b border-border overflow-x-auto">
+            {["overview", "schedule", "fans", "tips"].map((t) => (
               <Button
-                key={tab}
-                variant="ghost"
-                onClick={() => setActiveTab(tab)}
-                className={activeTab === tab ? "border-b-2 border-primary" : ""}
+                key={t}
+                variant={activeTab === t ? "default" : "ghost"}
+                onClick={() => setActiveTab(t)}
+                className="capitalize"
               >
-                {tab.charAt(0).toUpperCase() + tab.slice(1)}
+                {t}
               </Button>
             ))}
           </div>
         )}
 
-        {/* Overview */}
+        {/* Overview (always visible) */}
         {activeTab === "overview" && (
           <>
+            {/* Stats */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
-              {stats.map((stat, i) => (
+              {stats.map((s, i) => (
                 <Card key={i} className="p-6 bg-card/50 backdrop-blur-sm border-primary/20">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-sm text-muted-foreground">{stat.label}</p>
-                      <p className="text-2xl font-bold mt-1">{stat.value}</p>
+                      <p className="text-sm text-muted-foreground">{s.label}</p>
+                      <p className="text-2xl font-bold mt-1">{s.value}</p>
                     </div>
-                    <stat.icon className="w-8 h-8 text-primary opacity-70" />
+                    <s.icon className="w-8 h-8 text-primary opacity-70" />
                   </div>
                 </Card>
               ))}
             </div>
 
+            {/* Recent streams */}
             <Card className="p-6 bg-card/50 backdrop-blur-sm border-primary/20 mb-8">
               <h2 className="text-xl font-bold mb-4">Recent Streams</h2>
               <div className="space-y-3">
-                {recentStreams.map((stream, i) => (
-                  <div key={i} className="flex items-center justify-between py-3 border-b border-border/50 last:border-0">
+                {recentStreams.map((s, i) => (
+                  <div
+                    key={i}
+                    className="flex items-center justify-between py-3 border-b border-border/50 last:border-0"
+                  >
                     <div>
-                      <p className="font-medium">{stream.title}</p>
-                      <p className="text-sm text-muted-foreground">{stream.date} • {stream.duration}</p>
+                      <p className="font-medium">{s.title}</p>
+                      <p className="text-sm text-muted-foreground">
+                        {s.date} • {s.duration}
+                      </p>
                     </div>
-                    <Button size="sm" variant="ghost">Replay</Button>
+                    <Button size="sm" variant="ghost">
+                      Replay
+                    </Button>
                   </div>
                 ))}
               </div>
             </Card>
 
+            {/* NFT collection */}
             <div>
               <h2 className="text-xl font-bold mb-4">Your NFT Collection</h2>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 {[1, 2, 3].map((i) => (
-                  <Card key={i} className="overflow-hidden bg-card/50 backdrop-blur-sm border-primary/20">
+                  <Card
+                    key={i}
+                    className="overflow-hidden bg-card/50 backdrop-blur-sm border-primary/20"
+                  >
                     <div className="bg-gradient-to-br from-purple-600 to-blue-600 h-32 flex items-center justify-center">
                       <Trophy className="w-12 h-12 text-white opacity-80" />
                     </div>
@@ -227,10 +255,13 @@ const Dashboard = () => {
               </div>
             </div>
 
+            {/* Go-Live card for DJs */}
             {isDJ && (
               <Card className="p-6 bg-gradient-to-r from-purple-600 to-pink-600 text-white mt-8">
                 <h3 className="text-xl font-bold mb-2">Go Live Now</h3>
-                <p className="mb-4">Start your show and earn real-time tips from fans on Abstract Chain!</p>
+                <p className="mb-4">
+                  Start your show and earn real-time tips from fans!
+                </p>
                 <Button variant="secondary" className="gap-2">
                   <Mic className="w-5 h-5" />
                   Launch Stream
@@ -240,11 +271,10 @@ const Dashboard = () => {
           </>
         )}
 
-        {/* Schedule Tab (DJ only) */}
+        {/* DJ-only tabs – you can flesh these out later */}
         {activeTab === "schedule" && isDJ && (
           <Card className="p-6 bg-card/50 backdrop-blur-sm border-primary/20">
             <h2 className="text-xl font-bold mb-4">Show Schedule</h2>
-            {/* Add calendar or list of upcoming shows */}
             <Button className="gap-2">
               <Calendar className="w-4 h-4" />
               Add New Show
@@ -252,11 +282,9 @@ const Dashboard = () => {
           </Card>
         )}
 
-        {/* Fans Tab (DJ only) */}
         {activeTab === "fans" && isDJ && (
           <Card className="p-6 bg-card/50 backdrop-blur-sm border-primary/20">
             <h2 className="text-xl font-bold mb-4">Fan Leaderboard</h2>
-            {/* Add fan list with tips */}
             <Button className="gap-2">
               <Users className="w-4 h-4" />
               Invite Fans
@@ -264,11 +292,9 @@ const Dashboard = () => {
           </Card>
         )}
 
-        {/* Tips Tab (DJ only) */}
         {activeTab === "tips" && isDJ && (
           <Card className="p-6 bg-card/50 backdrop-blur-sm border-primary/20">
             <h2 className="text-xl font-bold mb-4">Tips & Earnings</h2>
-            {/* Add tip history */}
             <Button className="gap-2">
               <Send className="w-4 h-4" />
               Withdraw Earnings
@@ -276,11 +302,10 @@ const Dashboard = () => {
           </Card>
         )}
 
-        {/* Profile Editor */}
+        {/* Keep your existing profile editor / credential logic */}
         <Card className="mt-8 p-6">
           <h2 className="text-xl font-bold mb-4">Profile Editor</h2>
           <ProfileEditor />
-          {/* Add your linkWallet/unlinkWallet buttons, etc. */}
         </Card>
       </div>
     </div>
