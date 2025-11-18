@@ -33,7 +33,7 @@ const API = {
   },
 
   async patch(path: string, body: any) {
-    const res = await fetch(`${this.base}${path}`, {
+    악const res = await fetch(`${this.base}${path}`, {
       method: "PATCH",
       credentials: "include",
       headers: { "Content-Type": "application/json" },
@@ -73,16 +73,15 @@ export async function updateMe(payload: {
   return API.patch("/me", payload);
 }
 
-/** FIXED: Avatar upload — returns proxied path /uploads/... */
+/** FINAL FIX: Avatar upload returns /uploads/... path (no localhost:4001) */
 export async function uploadAvatar(file: File) {
   const fd = new FormData();
   fd.append("avatar", file);
   const res = await API.upload("/upload/avatar", fd);
 
+  // THIS IS THE ONLY LINE THAT MATTERS
   if (res?.url) {
-    // CRITICAL FIX: Strip backend origin so Vite proxy works
-    const cleanUrl = res.url.replace("http://localhost:4001", "");
-    return { url: cleanUrl }; // → becomes "/uploads/avatar-xyz.jpg"
+    return { url: res.url.replace("http://localhost:4001", "") };
   }
   return res;
 }
