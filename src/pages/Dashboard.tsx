@@ -1,4 +1,4 @@
-// src/components/Dashboard.tsx
+// src/pages/Dashboard.tsx   (or src/components/Dashboard.tsx — same file)
 import { useWeb3 } from "@/context/Web3Context";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -15,7 +15,7 @@ import { useToast } from "@/components/ui/use-toast";
 
 const formatAddress = (addr: string) => `${addr.slice(0, 6)}...${addr.slice(-4)}`;
 
-// DJ-Pass contract – replace with real address when deployed
+// REPLACE WHEN YOU DEPLOY YOUR NFT
 const DJ_PASS_CONTRACT = "0xYourRealDJPassAddressHere";
 const DJ_PASS_ABI = ["function balanceOf(address owner) view returns (uint256)"];
 
@@ -29,15 +29,17 @@ const Dashboard = () => {
   } = useWeb3();
 
   const { toast } = useToast();
+
   const [ethBalance, setEthBalance] = useState<string>("0.00");
   const [isDJ, setIsDJ] = useState<boolean>(false);
   const [djLoading, setDjLoading] = useState<boolean>(true);
   const [activeTab, setActiveTab] = useState<string>("overview");
 
-  // NEW: Dashboard profile (avatar + name)
+  // Profile data for header (avatar, name, bio)
   const [dashboardProfile, setDashboardProfile] = useState<{
     displayName?: string;
     avatarUrl?: string;
+    bio?: string;
   }>({});
 
   // Load ETH balance
@@ -55,16 +57,17 @@ const Dashboard = () => {
     fetchBalance();
   }, [account]);
 
-  // Load profile for dashboard
+  // Load profile (runs on mount + after profile edit)
   const loadProfile = async () => {
     try {
       const data = await api.getMe();
       setDashboardProfile({
-        displayName: data.profile?.displayName,
-        avatarUrl: data.profile?.avatarUrl,
+        displayName: data.profile?.displayName || "",
+        avatarUrl: data.profile?.avatarUrl || "",
+        bio: data.profile?.bio || "",
       });
     } catch (e) {
-      console.warn("Failed to load profile for dashboard");
+      console.warn("Failed to load profile");
     }
   };
 
@@ -74,7 +77,7 @@ const Dashboard = () => {
     }
   }, [isConnected, account]);
 
-  // Check DJ Pass NFT
+  // DJ-Pass NFT check
   useEffect(() => {
     if (!account || !window.ethereum) {
       setDjLoading(false);
@@ -108,7 +111,9 @@ const Dashboard = () => {
         <Card className="p-8 text-center max-w-md w-full">
           <Lock className="w-16 h-16 mx-auto mb-4 text-muted-foreground" />
           <h2 className="text-2xl font-bold mb-2">Wallet Required</h2>
-          <p className="text-muted-foreground mb-6">Connect your wallet to access your dashboard.</p>
+          <p className="text-muted-foreground mb-6">
+            Connect your wallet to access your dashboard.
+          </p>
           <Button onClick={connectWallet} disabled={isConnecting} className="w-full">
             {isConnecting ? "Connecting…" : "Connect Wallet"}
           </Button>
@@ -122,7 +127,7 @@ const Dashboard = () => {
       <div className="min-h-screen bg-background flex items-center justify-center pt-20">
         <div className="text-center">
           <div className="animate-spin w-12 h-12 border-4 border-primary border-t-transparent rounded-full mx-auto mb-4" />
-          <p className="text-muted-foreground">Checking DJ-Pass…</p>
+          <p className="text-muted-foreground">Loading dashboard…</p>
         </div>
       </div>
     );
@@ -145,35 +150,47 @@ const Dashboard = () => {
       <Navigation />
 
       <div className="container mx-auto px-4 py-8 pt-24">
-        {/* Top bar */}
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
-          <div className="flex items-center gap-4">
+        {/* TOP HEADER — Avatar, Name, Bio */}
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-6">
+          <div className="flex items-center gap-5">
             {/* Avatar */}
             {dashboardProfile.avatarUrl ? (
               <img
                 src={dashboardProfile.avatarUrl}
-                alt="avatar"
-                className="w-12 h-12 rounded-full object-cover"
+                alt="Profile avatar"
+                className="w-20 h-20 rounded-full object-cover ring-4 ring-primary/30"
               />
             ) : (
-              <div className="bg-muted w-12 h-12 rounded-full flex items-center justify-center">
-                <User className="w-6 h-6 text-muted-foreground" />
+              <div className="w-20 h-20 rounded-full bg-muted flex items-center justify-center">
+                <User className="w-12 h-12 text-muted-foreground" />
               </div>
             )}
 
             <div>
-              <h1 className="text-4xl font-bold text-gradient flex items-center gap-2">
-                {isDJ ? <Mic className="w-10 h-10" /> : <Headphones className="w-10 h-10" />}
+              <h1 className="text-5xl font-bold text-gradient flex items-center gap-3">
+                {isDJ ? <Mic className="w-12 h-12" /> : <Headphones className="w-12 h-12" />}
                 {isDJ ? "DJ Dashboard" : "Listener Dashboard"}
-                {isDJ && <Crown className="w-8 h-8 text-yellow-500" />}
+                {isDJ && <Crown className="w-10 h-10 text-yellow-500" />}
               </h1>
-              <p className="text-muted-foreground">
+
+              <p className="text-xl font-semibold text-foreground mt-2">
                 {dashboardProfile.displayName || formatAddress(account)}
               </p>
+
+              {dashboardProfile.bio ? (
+                <p className="text-base text-muted-foreground mt-2 max-w-xl">
+                  {dashboardProfile.bio}
+                </p>
+              ) : (
+                <p className="text-base text-muted-foreground/60 italic mt-2">
+                  No bio yet — click Edit Profile to add one
+                </p>
+              )}
             </div>
           </div>
 
-          <div className="flex gap-2">
+          {/* Right buttons */}
+          <div className="flex gap-3">
             <ProfileEditor onUpdated={loadProfile} />
             <Button variant="outline" size="icon">
               <Settings className="w-5 h-5" />
@@ -187,21 +204,21 @@ const Dashboard = () => {
 
         {/* DJ Tabs */}
         {isDJ && (
-          <div className="flex gap-3 mb-6 border-b border-border overflow-x-auto">
-            {["overview", "schedule", "fans", "tips"].map((t) => (
+          <div className="flex gap-4 mb-8 border-b border-border">
+            {["overview", "schedule", "fans", "tips"].map((tab) => (
               <Button
-                key={t}
-                variant={activeTab === t ? "default" : "ghost"}
-                onClick={() => setActiveTab(t)}
-                className="capitalize"
+                key={tab}
+                variant={activeTab === tab ? "default" : "ghost"}
+                onClick={() => setActiveTab(tab)}
+                className="capitalize pb-3"
               >
-                {t}
+                {tab}
               </Button>
             ))}
           </div>
         )}
 
-        {/* Overview */}
+        {/* Overview Content */}
         {activeTab === "overview" && (
           <>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
@@ -218,6 +235,7 @@ const Dashboard = () => {
               ))}
             </div>
 
+            {/* Recent Streams */}
             <Card className="p-6 bg-card/50 backdrop-blur-sm border-primary/20 mb-8">
               <h2 className="text-xl font-bold mb-4">Recent Streams</h2>
               <div className="space-y-3">
@@ -228,7 +246,9 @@ const Dashboard = () => {
                   >
                     <div>
                       <p className="font-medium">{s.title}</p>
-                      <p className="text-sm text-muted-foreground">{s.date} • {s.duration}</p>
+                      <p className="text-sm text-muted-foreground">
+                        {s.date} • {s.duration}
+                      </p>
                     </div>
                     <Button size="sm" variant="ghost">Replay</Button>
                   </div>
@@ -236,6 +256,7 @@ const Dashboard = () => {
               </div>
             </Card>
 
+            {/* NFT Collection */}
             <div>
               <h2 className="text-xl font-bold mb-4">Your NFT Collection</h2>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -257,6 +278,7 @@ const Dashboard = () => {
               </div>
             </div>
 
+            {/* Go Live Card for DJs */}
             {isDJ && (
               <Card className="p-6 bg-gradient-to-r from-purple-600 to-pink-600 text-white mt-8">
                 <h3 className="text-xl font-bold mb-2">Go Live Now</h3>
@@ -270,7 +292,7 @@ const Dashboard = () => {
           </>
         )}
 
-        {/* DJ-only tabs */}
+        {/* DJ-only tabs – keep your existing code here */}
         {activeTab === "schedule" && isDJ && (
           <Card className="p-6 bg-card/50 backdrop-blur-sm border-primary/20">
             <h2 className="text-xl font-bold mb-4">Show Schedule</h2>
