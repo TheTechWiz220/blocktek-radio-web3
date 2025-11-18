@@ -1,9 +1,7 @@
 // src/lib/api.ts
 const API = {
-  // allow overriding API base during development via VITE_API_BASE
   base: (import.meta as any).env?.VITE_API_BASE || "/api",
 
-  /** Generic POST (JSON) */
   async post(path: string, body: any) {
     const res = await fetch(`${this.base}${path}`, {
       method: "POST",
@@ -16,7 +14,6 @@ const API = {
     return data;
   },
 
-  /** Generic GET */
   async get(path: string) {
     const res = await fetch(`${this.base}${path}`, { credentials: "include" });
     const data = await res.json().catch(() => ({}));
@@ -24,7 +21,6 @@ const API = {
     return data;
   },
 
-  /** Generic upload (multipart/form-data) */
   async upload(path: string, formData: FormData) {
     const res = await fetch(`${this.base}${path}`, {
       method: "POST",
@@ -36,7 +32,6 @@ const API = {
     return data;
   },
 
-  /** PATCH – used for profile update */
   async patch(path: string, body: any) {
     const res = await fetch(`${this.base}${path}`, {
       method: "PATCH",
@@ -70,7 +65,6 @@ export async function getMe() {
   return API.get("/me");
 }
 
-/** Update profile – PATCH + camelCase */
 export async function updateMe(payload: {
   displayName?: string;
   bio?: string;
@@ -79,11 +73,18 @@ export async function updateMe(payload: {
   return API.patch("/me", payload);
 }
 
-/** Avatar upload – multipart/form-data */
+/** FIXED: Avatar upload — returns proxied path /uploads/... */
 export async function uploadAvatar(file: File) {
   const fd = new FormData();
   fd.append("avatar", file);
-  return API.upload("/upload/avatar", fd); // returns { url: "..." }
+  const res = await API.upload("/upload/avatar", fd);
+
+  if (res?.url) {
+    // CRITICAL FIX: Strip backend origin so Vite proxy works
+    const cleanUrl = res.url.replace("http://localhost:4001", "");
+    return { url: cleanUrl }; // → becomes "/uploads/avatar-xyz.jpg"
+  }
+  return res;
 }
 
 /* ------------------------------------------------------------------ */
