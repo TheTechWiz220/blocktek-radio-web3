@@ -1,5 +1,6 @@
-// src/pages/Dashboard.tsx   (or src/components/Dashboard.tsx — same file)
 import { useWeb3 } from "@/context/Web3Context";
+import { useAuth } from "@/context/AuthContext";
+import { useProfile } from "@/hooks/useProfile";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import {
@@ -9,9 +10,8 @@ import {
 import Navigation from "@/components/Navigation";
 import { useState, useEffect } from "react";
 import { ethers } from "ethers";
-import * as api from "@/lib/api";
 import ProfileEditor from "@/components/ProfileEditor";
-import { useToast } from "@/components/ui/use-toast";
+import { useNavigate, Link } from "react-router-dom";
 
 const formatAddress = (addr: string) => `${addr.slice(0, 6)}...${addr.slice(-4)}`;
 
@@ -20,6 +20,9 @@ const DJ_PASS_CONTRACT = "0xYourRealDJPassAddressHere";
 const DJ_PASS_ABI = ["function balanceOf(address owner) view returns (uint256)"];
 
 const Dashboard = () => {
+  const { user, signOut, loading: authLoading } = useAuth();
+  const { profile, fetchProfile } = useProfile();
+  const navigate = useNavigate();
   const {
     account,
     disconnect,
@@ -28,19 +31,10 @@ const Dashboard = () => {
     isConnecting,
   } = useWeb3();
 
-  const { toast } = useToast();
-
   const [ethBalance, setEthBalance] = useState<string>("0.00");
   const [isDJ, setIsDJ] = useState<boolean>(false);
   const [djLoading, setDjLoading] = useState<boolean>(true);
   const [activeTab, setActiveTab] = useState<string>("overview");
-
-  // Profile data for header (avatar, name, bio)
-  const [dashboardProfile, setDashboardProfile] = useState<{
-    displayName?: string;
-    avatarUrl?: string;
-    bio?: string;
-  }>({});
 
   // Load ETH balance
   useEffect(() => {
@@ -56,26 +50,6 @@ const Dashboard = () => {
     };
     fetchBalance();
   }, [account]);
-
-  // Load profile (runs on mount + after profile edit)
-  const loadProfile = async () => {
-    try {
-      const data = await api.getMe();
-      setDashboardProfile({
-        displayName: data.profile?.displayName || "",
-        avatarUrl: data.profile?.avatarUrl || "",
-        bio: data.profile?.bio || "",
-      });
-    } catch (e) {
-      console.warn("Failed to load profile");
-    }
-  };
-
-  useEffect(() => {
-    if (isConnected && account) {
-      loadProfile();
-    }
-  }, [isConnected, account]);
 
   // DJ-Pass NFT check
   useEffect(() => {
@@ -105,19 +79,64 @@ const Dashboard = () => {
     checkDJ();
   }, [account]);
 
-  if (!isConnected || !account) {
+  const handleSignOut = async () => {
+    await signOut();
+    disconnect();
+    navigate("/");
+  };
+
+  // Show loading while checking auth
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center pt-20">
+        <div className="text-center">
+          <div className="animate-spin w-12 h-12 border-4 border-primary border-t-transparent rounded-full mx-auto mb-4" />
+          <p className="text-muted-foreground">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Require authentication
+  if (!user) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center p-4 pt-20">
         <Card className="p-8 text-center max-w-md w-full">
           <Lock className="w-16 h-16 mx-auto mb-4 text-muted-foreground" />
-          <h2 className="text-2xl font-bold mb-2">Wallet Required</h2>
+          <h2 className="text-2xl font-bold mb-2">Sign In Required</h2>
           <p className="text-muted-foreground mb-6">
-            Connect your wallet to access your dashboard.
+            Please sign in to access your dashboard.
           </p>
-          <Button onClick={connectWallet} disabled={isConnecting} className="w-full">
-            {isConnecting ? "Connecting…" : "Connect Wallet"}
-          </Button>
+          <Link to="/auth">
+            <Button className="w-full">Sign In</Button>
+          </Link>
         </Card>
+      </div>
+    );
+  }
+
+  // Wallet connection prompt (optional but recommended)
+  if (!isConnected || !account) {
+    return (
+      <div className="min-h-screen bg-background">
+        <Navigation />
+        <div className="flex items-center justify-center min-h-screen p-4 pt-20">
+          <Card className="p-8 text-center max-w-md w-full">
+            <Wallet className="w-16 h-16 mx-auto mb-4 text-muted-foreground" />
+            <h2 className="text-2xl font-bold mb-2">Connect Wallet</h2>
+            <p className="text-muted-foreground mb-6">
+              Connect your wallet for Web3 features like NFTs and crypto tracking.
+            </p>
+            <div className="space-y-3">
+              <Button onClick={connectWallet} disabled={isConnecting} className="w-full">
+                {isConnecting ? "Connecting…" : "Connect Wallet"}
+              </Button>
+              <Button variant="ghost" onClick={() => setDjLoading(false)} className="w-full">
+                Skip for now
+              </Button>
+            </div>
+          </Card>
+        </div>
       </div>
     );
   }
@@ -154,9 +173,9 @@ const Dashboard = () => {
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-6">
           <div className="flex items-center gap-5">
             {/* Avatar */}
-            {dashboardProfile.avatarUrl ? (
+            {profile?.avatar_url ? (
               <img
-                src={dashboardProfile.avatarUrl}
+                src={profile.avatar_url}
                 alt="Profile avatar"
                 className="w-20 h-20 rounded-full object-cover ring-4 ring-primary/30"
               />
@@ -174,12 +193,12 @@ const Dashboard = () => {
               </h1>
 
               <p className="text-xl font-semibold text-foreground mt-2">
-                {dashboardProfile.displayName || formatAddress(account)}
+                {profile?.display_name || user.email || formatAddress(account)}
               </p>
 
-              {dashboardProfile.bio ? (
+              {profile?.bio ? (
                 <p className="text-base text-muted-foreground mt-2 max-w-xl">
-                  {dashboardProfile.bio}
+                  {profile.bio}
                 </p>
               ) : (
                 <p className="text-base text-muted-foreground/60 italic mt-2">
@@ -191,13 +210,13 @@ const Dashboard = () => {
 
           {/* Right buttons */}
           <div className="flex gap-3">
-            <ProfileEditor onUpdated={loadProfile} />
+            <ProfileEditor onUpdated={fetchProfile} />
             <Button variant="outline" size="icon">
               <Settings className="w-5 h-5" />
             </Button>
-            <Button variant="outline" onClick={disconnect} className="gap-2">
+            <Button variant="outline" onClick={handleSignOut} className="gap-2">
               <LogOut className="w-4 h-4" />
-              <span className="hidden sm:inline">Disconnect</span>
+              <span className="hidden sm:inline">Sign Out</span>
             </Button>
           </div>
         </div>
@@ -292,7 +311,7 @@ const Dashboard = () => {
           </>
         )}
 
-        {/* DJ-only tabs – keep your existing code here */}
+        {/* DJ-only tabs */}
         {activeTab === "schedule" && isDJ && (
           <Card className="p-6 bg-card/50 backdrop-blur-sm border-primary/20">
             <h2 className="text-xl font-bold mb-4">Show Schedule</h2>

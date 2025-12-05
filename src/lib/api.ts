@@ -33,7 +33,7 @@ const API = {
   },
 
   async patch(path: string, body: any) {
-    악const res = await fetch(`${this.base}${path}`, {
+    const res = await fetch(`${this.base}${path}`, {
       method: "PATCH",
       credentials: "include",
       headers: { "Content-Type": "application/json" },
@@ -73,14 +73,14 @@ export async function updateMe(payload: {
   return API.patch("/me", payload);
 }
 
-/** FINAL FIX: Avatar upload returns /uploads/... path (no localhost:4001) */
+/* FINAL FIX – Avatar URL is now correctly proxied */
 export async function uploadAvatar(file: File) {
   const fd = new FormData();
   fd.append("avatar", file);
   const res = await API.upload("/upload/avatar", fd);
 
-  // THIS IS THE ONLY LINE THAT MATTERS
   if (res?.url) {
+    // Strip backend origin so Vite proxy works → /uploads/...
     return { url: res.url.replace("http://localhost:4001", "") };
   }
   return res;
@@ -116,9 +116,7 @@ export async function getDjRequests(params?: {
       ? "?" +
         Object.entries(params)
           .filter(([, v]) => v !== undefined && v !== null && v !== "")
-          .map(
-            ([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(String(v))}`
-          )
+          .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(String(v))}`)
           .join("&")
       : "";
   return API.get(`/admin/requests${qs}`);

@@ -1,4 +1,3 @@
-// src/components/ProfileEditor.tsx
 import React, { useState, useEffect, useRef } from "react";
 import {
   Dialog,
@@ -13,8 +12,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import * as api from "@/lib/api";
 import { useToast } from "@/components/ui/use-toast";
+import { useProfile } from "@/hooks/useProfile";
 
 interface Props {
   onUpdated?: () => void;
@@ -22,39 +21,26 @@ interface Props {
 
 export default function ProfileEditor({ onUpdated }: Props) {
   const { toast } = useToast();
+  const { profile, updateProfile, uploadAvatar } = useProfile();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  const [profile, setProfile] = useState<{
-    displayName: string;
-    avatarUrl: string;
-    bio: string;
-  }>({
+  const [formData, setFormData] = useState({
     displayName: "",
     avatarUrl: "",
     bio: "",
   });
 
   useEffect(() => {
-    if (!open) return;
-    let mounted = true;
-    (async () => {
-      try {
-        const data = await api.getMe();
-        if (!mounted) return;
-        const p = data.profile || {};
-        setProfile({
-          displayName: p.displayName || "",
-          avatarUrl: p.avatarUrl || "",
-          bio: p.bio || "",
-        });
-      } catch (e) {
-        console.warn("Failed to load profile", e);
-      }
-    })();
-    return () => { mounted = false; };
-  }, [open]);
+    if (open && profile) {
+      setFormData({
+        displayName: profile.display_name || "",
+        avatarUrl: profile.avatar_url || "",
+        bio: profile.bio || "",
+      });
+    }
+  }, [open, profile]);
 
   const handleFile = async (file?: File) => {
     if (!file) return;
@@ -69,9 +55,10 @@ export default function ProfileEditor({ onUpdated }: Props) {
 
     setLoading(true);
     try {
-      const res = await api.uploadAvatar(file);
-      if (res?.url) {
-        setProfile((p) => ({ ...p, avatarUrl: res.url }));
+      const { url, error } = await uploadAvatar(file);
+      if (error) throw error;
+      if (url) {
+        setFormData((p) => ({ ...p, avatarUrl: url }));
         toast({ title: "Avatar uploaded", description: "Image saved!" });
       }
     } catch (e: any) {
@@ -88,11 +75,14 @@ export default function ProfileEditor({ onUpdated }: Props) {
   const handleSave = async () => {
     setLoading(true);
     try {
-      await api.updateMe({
-        displayName: profile.displayName,
-        bio: profile.bio,
-        avatarUrl: profile.avatarUrl,
+      const { error } = await updateProfile({
+        display_name: formData.displayName,
+        bio: formData.bio,
+        avatar_url: formData.avatarUrl,
       });
+
+      if (error) throw error;
+
       toast({ title: "Saved", description: "Profile updated successfully" });
       setOpen(false);
       onUpdated?.();
@@ -124,18 +114,18 @@ export default function ProfileEditor({ onUpdated }: Props) {
         <div className="grid gap-4 py-4">
           <div className="flex items-center gap-4">
             <Avatar className="h-20 w-20">
-              <AvatarImage src={profile.avatarUrl} alt="avatar" />
+              <AvatarImage src={formData.avatarUrl} alt="avatar" />
               <AvatarFallback>
-                {profile.displayName[0]?.toUpperCase() || "U"}
+                {formData.displayName[0]?.toUpperCase() || "U"}
               </AvatarFallback>
             </Avatar>
 
             <div className="flex flex-col gap-2">
               <Input
                 placeholder="Display name"
-                value={profile.displayName}
+                value={formData.displayName}
                 onChange={(e) =>
-                  setProfile((p) => ({ ...p, displayName: e.target.value }))
+                  setFormData((p) => ({ ...p, displayName: e.target.value }))
                 }
               />
               <Input
@@ -159,9 +149,9 @@ export default function ProfileEditor({ onUpdated }: Props) {
           <Textarea
             placeholder="Bio"
             rows={4}
-            value={profile.bio}
+            value={formData.bio}
             onChange={(e) =>
-              setProfile((p) => ({ ...p, bio: e.target.value }))
+              setFormData((p) => ({ ...p, bio: e.target.value }))
             }
           />
         </div>
