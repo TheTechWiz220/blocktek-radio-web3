@@ -26,7 +26,7 @@ export const FOUNDERS: Founder[] = [
     location: "Banjul, The Gambia",
     bio: "Blockchain developer and educator focused on building infrastructure and tools that make Web3 accessible. Leads technical strategy, product architecture, and developer community initiatives.",
     // Local image – served from /public
-    image: "/images/founders/techwiz-avatar.jpg"
+    image: "/images/founders/techwiz - avatar.jpg"
   },
   {
     name: "Stan Munyasia",
