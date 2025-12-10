@@ -4,7 +4,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { useQuery } from "@tanstack/react-query";
 
-type CoinId = "bitcoin" | "ethereum" | "lisk" | "cardano" | "solana" | "polygon";
+type CoinId = "bitcoin" | "ethereum" | "lisk" | "cardano" | "solana" | "matic-network";
 
 const COINS: { id: CoinId; name: string; symbol: string; icon: any }[] = [
   { id: "bitcoin", name: "Bitcoin", symbol: "BTC", icon: Bitcoin },
@@ -12,7 +12,7 @@ const COINS: { id: CoinId; name: string; symbol: string; icon: any }[] = [
   { id: "lisk", name: "Lisk", symbol: "LSK", icon: Coins },
   { id: "cardano", name: "Cardano", symbol: "ADA", icon: Coins },
   { id: "solana", name: "Solana", symbol: "SOL", icon: Coins },
-  { id: "polygon", name: "Polygon", symbol: "MATIC", icon: Coins },
+  { id: "matic-network", name: "Polygon", symbol: "MATIC", icon: Coins },
 ];
 
 const fetchPrices = async () => {
