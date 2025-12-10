@@ -12,12 +12,10 @@ import Navigation from "@/components/Navigation";
 import { useState, useEffect } from "react";
 import { ethers } from "ethers";
 import ProfileEditor from "@/components/ProfileEditor";
+import MintDJPass from "@/components/MintDJPass";
 import { useNavigate, Link } from "react-router-dom";
 
 const formatAddress = (addr: string) => `${addr.slice(0, 6)}...${addr.slice(-4)}`;
-
-const DJ_PASS_CONTRACT = "0xYourRealDJPassAddressHere";
-const DJ_PASS_ABI = ["function balanceOf(address owner) view returns (uint256)"];
 
 const Dashboard = () => {
   const { user, signOut, loading: authLoading } = useAuth();
@@ -29,11 +27,12 @@ const Dashboard = () => {
     isConnected,
     connectWallet,
     isConnecting,
+    isDJ,
+    djLoading,
+    refreshDJStatus,
   } = useWeb3();
 
   const [ethBalance, setEthBalance] = useState<string>("0.00");
-  const [isDJ, setIsDJ] = useState<boolean>(false);
-  const [djLoading, setDjLoading] = useState<boolean>(true);
   const [activeTab, setActiveTab] = useState<string>("overview");
 
   // Load ETH balance
@@ -49,34 +48,6 @@ const Dashboard = () => {
       }
     };
     fetchBalance();
-  }, [account]);
-
-  // DJ-Pass NFT check
-  useEffect(() => {
-    if (!account || !window.ethereum) {
-      setDjLoading(false);
-      return;
-    }
-
-    const checkDJ = async () => {
-      setDjLoading(true);
-      try {
-        if (DJ_PASS_CONTRACT.toLowerCase().includes("your")) {
-          setIsDJ(false);
-          return;
-        }
-        const provider = new ethers.BrowserProvider(window.ethereum);
-        const contract = new ethers.Contract(DJ_PASS_CONTRACT, DJ_PASS_ABI, provider);
-        const bal = await contract.balanceOf(account);
-        setIsDJ(bal > 0);
-      } catch (err) {
-        console.warn("DJ-Pass check failed:", err);
-        setIsDJ(false);
-      } finally {
-        setDjLoading(false);
-      }
-    };
-    checkDJ();
   }, [account]);
 
   const handleSignOut = async () => {
@@ -126,9 +97,6 @@ const Dashboard = () => {
               <Button onClick={connectWallet} disabled={isConnecting} className="w-full">
                 {isConnecting ? "Connecting…" : "Connect Wallet"}
               </Button>
-              <Button variant="ghost" onClick={() => setDjLoading(false)} className="w-full">
-                Skip for now
-              </Button>
             </div>
           </Card>
         </div>
@@ -149,14 +117,21 @@ const Dashboard = () => {
 
   const stats = [
     { label: "Listening Time", value: "48h 12m", icon: Headphones },
-    { label: "NFTs Owned", value: "3", icon: Trophy },
+    { label: "NFTs Owned", value: isDJ ? "1+" : "0", icon: Trophy },
     { label: "ETH Balance", value: `${ethBalance} ETH`, icon: Wallet },
   ];
 
   const recentStreams = [
-    { title: "Crypto Market Updates", date: "Nov 14, 2025", duration: "1h 30m" },
-    { title: "Blockchain Morning Brief", date: "Nov 13, 2025", duration: "45m" },
-    { title: "NFT Market Analysis", date: "Nov 12, 2025", duration: "1h" },
+    { title: "Crypto Market Updates", date: "Dec 10, 2025", duration: "1h 30m" },
+    { title: "Blockchain Morning Brief", date: "Dec 9, 2025", duration: "45m" },
+    { title: "NFT Market Analysis", date: "Dec 8, 2025", duration: "1h" },
+  ];
+
+  const djTabs = [
+    { id: "overview", label: "Overview", icon: Headphones },
+    { id: "schedule", label: "Schedule", icon: Calendar },
+    { id: "audience", label: "Audience", icon: Users },
+    { id: "broadcast", label: "Go Live", icon: Send },
   ];
 
   return (
@@ -164,7 +139,7 @@ const Dashboard = () => {
       <Navigation />
 
       <div className="container mx-auto px-4 py-8 pt-24">
-        {/* PERFECT CENTERED HEADER */}
+        {/* Header */}
         <div className="flex flex-col items-center justify-center text-center mb-12 gap-6">
           {/* Avatar */}
           {profile?.avatar_url ? (
@@ -181,13 +156,13 @@ const Dashboard = () => {
 
           {/* Title + Name + Bio */}
           <div>
-            <h1 className="text-6xl font-bold bg-gradient-to-r from-purple-400 via-pink-400 to-blue-400 bg-clip-text text-transparent flex items-center justify-center gap-4">
-              {isDJ ? <Mic className="w-16 h-16" /> : <Headphones className="w-16 h-16" />}
+            <h1 className="text-5xl md:text-6xl font-bold bg-gradient-to-r from-purple-400 via-pink-400 to-blue-400 bg-clip-text text-transparent flex items-center justify-center gap-4">
+              {isDJ ? <Mic className="w-12 md:w-16 h-12 md:h-16" /> : <Headphones className="w-12 md:w-16 h-12 md:h-16" />}
               {isDJ ? "DJ Dashboard" : "Listener Dashboard"}
-              {isDJ && <Crown className="w-14 h-14 text-yellow-500" />}
+              {isDJ && <Crown className="w-10 md:w-14 h-10 md:h-14 text-yellow-500" />}
             </h1>
 
-            <p className="text-2xl font-bold text-foreground mt-4">
+            <p className="text-xl md:text-2xl font-bold text-foreground mt-4">
               {profile?.display_name || user.email || formatAddress(account)}
             </p>
 
@@ -215,10 +190,28 @@ const Dashboard = () => {
           </div>
         </div>
 
-        {/* Rest of your dashboard content */}
+        {/* DJ Tabs (only show if DJ) */}
+        {isDJ && (
+          <div className="flex justify-center gap-2 mb-8 flex-wrap">
+            {djTabs.map((tab) => (
+              <Button
+                key={tab.id}
+                variant={activeTab === tab.id ? "default" : "outline"}
+                onClick={() => setActiveTab(tab.id)}
+                className="gap-2"
+              >
+                <tab.icon className="w-4 h-4" />
+                {tab.label}
+              </Button>
+            ))}
+          </div>
+        )}
+
+        {/* Content */}
         {activeTab === "overview" && (
           <>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
+            {/* Stats Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
               {stats.map((s, i) => (
                 <Card key={i} className="p-6 bg-card/50 backdrop-blur-sm border-primary/20">
                   <div className="flex items-center justify-between">
@@ -232,13 +225,61 @@ const Dashboard = () => {
               ))}
             </div>
 
-            {/* Recent Streams, NFT Collection, etc. — keep your existing code */}
-            {/* ... */}
+            {/* Main Grid */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Recent Streams */}
+              <Card className="p-6 bg-card/50 backdrop-blur-sm border-primary/20">
+                <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                  <Headphones className="w-5 h-5 text-primary" />
+                  Recent Streams
+                </h3>
+                <div className="space-y-4">
+                  {recentStreams.map((stream, i) => (
+                    <div key={i} className="flex items-center justify-between p-3 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors">
+                      <div>
+                        <p className="font-medium">{stream.title}</p>
+                        <p className="text-sm text-muted-foreground">{stream.date}</p>
+                      </div>
+                      <span className="text-sm text-primary">{stream.duration}</span>
+                    </div>
+                  ))}
+                </div>
+              </Card>
+
+              {/* DJ Pass Mint Card */}
+              <MintDJPass onMintSuccess={refreshDJStatus} />
+            </div>
           </>
         )}
 
-        {/* DJ tabs — keep your existing code */}
-        {/* ... */}
+        {/* DJ-only tabs content */}
+        {isDJ && activeTab === "schedule" && (
+          <Card className="p-8 text-center">
+            <Calendar className="w-16 h-16 mx-auto mb-4 text-primary" />
+            <h3 className="text-xl font-bold mb-2">Schedule Management</h3>
+            <p className="text-muted-foreground">Manage your upcoming radio shows and events.</p>
+          </Card>
+        )}
+
+        {isDJ && activeTab === "audience" && (
+          <Card className="p-8 text-center">
+            <Users className="w-16 h-16 mx-auto mb-4 text-primary" />
+            <h3 className="text-xl font-bold mb-2">Audience Analytics</h3>
+            <p className="text-muted-foreground">View your listener stats and engagement metrics.</p>
+          </Card>
+        )}
+
+        {isDJ && activeTab === "broadcast" && (
+          <Card className="p-8 text-center">
+            <Send className="w-16 h-16 mx-auto mb-4 text-primary" />
+            <h3 className="text-xl font-bold mb-2">Go Live</h3>
+            <p className="text-muted-foreground">Start your live broadcast and connect with your audience.</p>
+            <Button className="mt-6" size="lg">
+              <Mic className="w-5 h-5 mr-2" />
+              Start Broadcasting
+            </Button>
+          </Card>
+        )}
       </div>
     </div>
   );
