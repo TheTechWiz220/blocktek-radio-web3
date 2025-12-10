@@ -1,14 +1,9 @@
 // src/context/Web3Context.tsx
 'use client';
 
-import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
 import { ethers } from 'ethers';
-
-// DJ PASS NFT CONTRACT (REPLACE WITH YOURS)
-const DJ_PASS_CONTRACT = "0xYourDJPassContract"; // ← UPDATE THIS
-const DJ_PASS_ABI = [
-  "function balanceOf(address owner) view returns (uint256)"
-];
+import { DJ_PASS_ADDRESS, DJ_PASS_ABI, isValidContractAddress } from '@/lib/contracts';
 
 interface Web3ContextType {
   account: string | null;
@@ -17,7 +12,9 @@ interface Web3ContextType {
   connectWallet: () => Promise<void>;
   disconnect: () => void;
   isConnecting: boolean;
-  isDJ: boolean; // ← ADD THIS
+  isDJ: boolean;
+  djLoading: boolean;
+  refreshDJStatus: () => Promise<void>;
 }
 
 const Web3Context = createContext<Web3ContextType | undefined>(undefined);
@@ -26,35 +23,65 @@ export const Web3Provider = ({ children }: { children: ReactNode }) => {
   const [account, setAccount] = useState<string | null>(null);
   const [isWrongNetwork, setIsWrongNetwork] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
-  const [isDJ, setIsDJ] = useState(false); // ← ADD THIS STATE HERE
+  const [isDJ, setIsDJ] = useState(false);
+  const [djLoading, setDjLoading] = useState(false);
+  
   const TARGET_CHAIN = "0x1"; // Ethereum Mainnet
 
-  const connectWallet = async () => {
+  const getInjectedProvider = useCallback(() => {
     const injected = (window as any).ethereum;
-    if (!injected) {
-      alert("Install MetaMask or another web3 wallet[](https://metamask.io)");
+    if (!injected) return null;
+    
+    if (injected.providers && Array.isArray(injected.providers)) {
+      return injected.providers.find((p: any) => p.isMetaMask) || injected.providers[0];
+    }
+    return injected;
+  }, []);
+
+  const checkDJStatus = useCallback(async (addr: string, provider: ethers.BrowserProvider) => {
+    if (!isValidContractAddress(DJ_PASS_ADDRESS)) {
+      console.log("DJ Pass contract not deployed yet");
+      setIsDJ(false);
       return;
     }
 
-    // Handle multiple injected providers (Wallets that populate window.ethereum.providers)
-    const getInjectedProvider = () => {
-      if (injected.providers && Array.isArray(injected.providers)) {
-        // prefer MetaMask if present
-        return injected.providers.find((p: any) => p.isMetaMask) || injected.providers[0];
-      }
-      return injected;
-    };
+    setDjLoading(true);
+    try {
+      const contract = new ethers.Contract(DJ_PASS_ADDRESS, DJ_PASS_ABI, provider);
+      const balance = await contract.balanceOf(addr);
+      setIsDJ(Number(balance) > 0);
+    } catch (err) {
+      console.error("DJ check failed:", err);
+      setIsDJ(false);
+    } finally {
+      setDjLoading(false);
+    }
+  }, []);
 
+  const refreshDJStatus = useCallback(async () => {
+    if (!account) return;
+    
     const selected = getInjectedProvider();
+    if (!selected) return;
+    
+    try {
+      const provider = new ethers.BrowserProvider(selected as any);
+      await checkDJStatus(account, provider);
+    } catch (err) {
+      console.error("Failed to refresh DJ status:", err);
+    }
+  }, [account, getInjectedProvider, checkDJStatus]);
+
+  const connectWallet = async () => {
+    const selected = getInjectedProvider();
+    if (!selected) {
+      alert("Install MetaMask or another web3 wallet");
+      return;
+    }
 
     setIsConnecting(true);
     try {
-      // use the selected provider for requests
-      if (typeof selected.request === 'function') {
-        await selected.request({ method: 'eth_requestAccounts' });
-      } else if (typeof injected.request === 'function') {
-        await injected.request({ method: 'eth_requestAccounts' });
-      }
+      await selected.request({ method: 'eth_requestAccounts' });
 
       const provider = new ethers.BrowserProvider(selected as any);
       const signer = await provider.getSigner();
@@ -62,22 +89,26 @@ export const Web3Provider = ({ children }: { children: ReactNode }) => {
       setAccount(address);
 
       const network = await provider.getNetwork();
-      const chainId = network.chainId.toString(16);
+      const chainId = "0x" + network.chainId.toString(16);
+      
       if (chainId !== TARGET_CHAIN) {
         setIsWrongNetwork(true);
         try {
-          const reqTarget = (selected && typeof selected.request === 'function') ? selected : injected;
-          await reqTarget.request({ method: 'wallet_switchEthereumChain', params: [{ chainId: TARGET_CHAIN }] });
+          await selected.request({ 
+            method: 'wallet_switchEthereumChain', 
+            params: [{ chainId: TARGET_CHAIN }] 
+          });
           setIsWrongNetwork(false);
         } catch (err: any) {
-          if (err.code === 4902) alert("Add Ethereum Mainnet to MetaMask.");
+          if (err.code === 4902) {
+            alert("Please add Ethereum Mainnet to MetaMask.");
+          }
         }
       }
 
-      // Check DJ status after connect ← ADD THIS CALL HERE
-      checkDJStatus(address, provider);
+      await checkDJStatus(address, provider);
     } catch (err) {
-      console.error(err);
+      console.error("Wallet connection failed:", err);
     } finally {
       setIsConnecting(false);
     }
@@ -86,47 +117,30 @@ export const Web3Provider = ({ children }: { children: ReactNode }) => {
   const disconnect = () => {
     setAccount(null);
     setIsWrongNetwork(false);
-    setIsDJ(false); // ← ADD THIS TO RESET DJ STATUS
-  };
-
-  // ADD THIS FUNCTION HERE
-  const checkDJStatus = async (addr: string, provider: ethers.BrowserProvider) => {
-    try {
-      const contract = new ethers.Contract(DJ_PASS_CONTRACT, DJ_PASS_ABI, provider);
-      const balance = await contract.balanceOf(addr);
-      setIsDJ(Number(balance) > 0);
-    } catch (err) {
-      console.error("DJ check failed:", err);
-      setIsDJ(false);
-    }
+    setIsDJ(false);
   };
 
   useEffect(() => {
-    const injected = (window as any).ethereum;
-    if (!injected) return;
-
-    const getInjectedProvider = () => {
-      if (injected.providers && Array.isArray(injected.providers)) {
-        return injected.providers.find((p: any) => p.isMetaMask) || injected.providers[0];
-      }
-      return injected;
-    };
-
     const selected = getInjectedProvider();
+    if (!selected) return;
 
     const handleAccounts = (accounts: string[]) => {
-      setAccount(accounts[0] || null);
+      if (accounts[0]) {
+        setAccount(accounts[0]);
+        // Re-check DJ status when account changes
+        const provider = new ethers.BrowserProvider(selected as any);
+        checkDJStatus(accounts[0], provider);
+      } else {
+        setAccount(null);
+        setIsDJ(false);
+      }
     };
 
-    // attach listeners to the selected provider if available
+    const handleChainChanged = () => window.location.reload();
+
     try {
-      if (selected && typeof selected.on === 'function') {
-        selected.on('accountsChanged', handleAccounts);
-        selected.on('chainChanged', () => window.location.reload());
-      } else if (typeof injected.on === 'function') {
-        injected.on('accountsChanged', handleAccounts);
-        injected.on('chainChanged', () => window.location.reload());
-      }
+      selected.on('accountsChanged', handleAccounts);
+      selected.on('chainChanged', handleChainChanged);
     } catch (e) {
       console.warn('Failed to attach provider listeners', e);
     }
@@ -138,7 +152,7 @@ export const Web3Provider = ({ children }: { children: ReactNode }) => {
         const accounts = await provider.listAccounts();
         if (accounts.length > 0) {
           setAccount(accounts[0].address);
-          checkDJStatus(accounts[0].address, provider); // ← ADD THIS CALL HERE
+          await checkDJStatus(accounts[0].address, provider);
         }
       } catch (err) {
         console.log('Auto-connect skipped');
@@ -147,16 +161,13 @@ export const Web3Provider = ({ children }: { children: ReactNode }) => {
 
     return () => {
       try {
-        if (selected && typeof selected.removeListener === 'function') {
-          selected.removeListener('accountsChanged', handleAccounts);
-        } else if (typeof injected.removeListener === 'function') {
-          injected.removeListener('accountsChanged', handleAccounts);
-        }
+        selected.removeListener('accountsChanged', handleAccounts);
+        selected.removeListener('chainChanged', handleChainChanged);
       } catch (e) {
         // ignore
       }
     };
-  }, []);
+  }, [getInjectedProvider, checkDJStatus]);
 
   return (
     <Web3Context.Provider value={{
@@ -166,7 +177,9 @@ export const Web3Provider = ({ children }: { children: ReactNode }) => {
       connectWallet,
       disconnect,
       isConnecting,
-      isDJ, // ← ADD THIS TO THE CONTEXT VALUE
+      isDJ,
+      djLoading,
+      refreshDJStatus,
     }}>
       {children}
     </Web3Context.Provider>
