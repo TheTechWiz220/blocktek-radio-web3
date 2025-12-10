@@ -16,7 +16,7 @@ export type Founder = {
 export const FOUNDERS: Founder[] = [
   {
     name: "The TechWiz",
-    role: "Founder & CTO",
+    role: "Co-Founder & CTO",
     handle: "@thetechwiz220",
     twitter: "thetechwiz220",
     xUrl: "https://x.com/thetechwiz220",
@@ -30,7 +30,7 @@ export const FOUNDERS: Founder[] = [
   },
   {
     name: "Stan Munyasia",
-    role: "Advisor & Head of Content",
+    role: "Co-Founder & Head of Content",
     handle: "@stanmunyasia",
     twitter: "stanmunyasia",
     xUrl: "https://x.com/stanmunyasia",
