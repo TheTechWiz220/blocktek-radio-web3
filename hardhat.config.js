@@ -19,21 +19,21 @@ module.exports = {
     
     // Abstract Chain Testnet
     abstractTestnet: {
-      url: "https://api.testnet.abs.xyz",
+      url: "https://api.testnet.abs.xyz",  // Public RPC — no key needed
       chainId: 11124,
       accounts: process.env.PRIVATE_KEY ? [process.env.PRIVATE_KEY] : [],
     },
     
     // Abstract Chain Mainnet
     abstract: {
-      url: "https://api.abs.xyz",
+      url: "https://api.abs.xyz",  // Public RPC — no key needed
       chainId: 2741,
       accounts: process.env.PRIVATE_KEY ? [process.env.PRIVATE_KEY] : [],
     },
     
     // Sepolia Testnet (for testing)
     sepolia: {
-      url: process.env.SEPOLIA_RPC_URL || "https://rpc.sepolia.org",
+      url: "https://rpc.sepolia.org",  // Public RPC — no key needed
       chainId: 11155111,
       accounts: process.env.PRIVATE_KEY ? [process.env.PRIVATE_KEY] : [],
     },

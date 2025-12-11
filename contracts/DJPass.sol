@@ -35,31 +35,22 @@ contract DJPass is ERC721A, Ownable {
         require(quantity > 0 && quantity <= MAX_PER_WALLET, "Invalid quantity");
         require(totalSupply() + quantity <= MAX_SUPPLY, "Exceeds max supply");
         require(_numberMinted(msg.sender) + quantity <= MAX_PER_WALLET, "Exceeds wallet limit");
-        require(msg.value >= MINT_PRICE * quantity, "Insufficient ETH");
+        require(msg.value >= MINT_PRICE * quantity, "Not enough ETH");
 
-        uint256 firstTokenId = _nextTokenId();
-        _mint(msg.sender, quantity);
-        
-        emit Minted(msg.sender, quantity, firstTokenId);
+        uint256 startTokenId = _nextTokenId();
+        _safeMint(msg.sender, quantity);
+        emit Minted(msg.sender, quantity, startTokenId);
     }
 
     /**
-     * @notice Owner can mint for free (airdrops, promotions)
-     */
-    function ownerMint(address to, uint256 quantity) external onlyOwner {
-        require(totalSupply() + quantity <= MAX_SUPPLY, "Exceeds max supply");
-        _mint(to, quantity);
-    }
-
-    /**
-     * @notice Toggle minting on/off
+     * @notice Toggle minting
      */
     function setMintActive(bool active) external onlyOwner {
         mintActive = active;
     }
 
     /**
-     * @notice Update base URI for metadata
+     * @notice Set base URI for metadata
      */
     function setBaseURI(string memory baseURI) external onlyOwner {
         _baseTokenURI = baseURI;

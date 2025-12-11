@@ -22,7 +22,7 @@ async function main() {
   console.log("✅ BlockTek DJ Pass deployed to:", contractAddress);
   console.log("\n📝 Next steps:");
   console.log("1. Update DJ_PASS_ADDRESS in src/lib/contracts.ts");
-  console.log("2. Update DJ_PASS_CONTRACT in src/context/Web3Context.tsx");
+  console.log("2. Update DJ_PASS_CONTRACT in Dashboard.tsx");
   console.log("3. Verify contract on block explorer (optional):\n");
   console.log(`   npx hardhat verify --network ${hre.network.name} ${contractAddress} "${baseURI}"`);
 }
