@@ -1,4 +1,4 @@
-const hre = require("hardhat");
+import hre from "hardhat";
 
 async function main() {
   console.log("🚀 Deploying BlockTek DJ Pass NFT...\n");
@@ -15,7 +15,7 @@ async function main() {
   // Deploy contract
   const DJPass = await hre.ethers.getContractFactory("DJPass");
   const djPass = await DJPass.deploy(baseURI);
-  
+
   await djPass.waitForDeployment();
   const contractAddress = await djPass.getAddress();
 
@@ -25,9 +25,7 @@ async function main() {
   console.log("2. Get test ETH from faucet and mint!");
 }
 
-main()
-  .then(() => process.exit(0))
-  .catch((error) => {
-    console.error("❌ Deployment failed:", error);
-    process.exit(1);
-  });
+main().catch((error) => {
+  console.error("❌ Deployment failed:", error);
+  process.exit(1);
+});

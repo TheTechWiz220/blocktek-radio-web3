@@ -1,13 +1,14 @@
-// hardhat.config.cjs
-require("@nomicfoundation/hardhat-toolbox");
-require("dotenv").config();  // Loads .env
+import "@nomicfoundation/hardhat-toolbox";
+import * as dotenv from "dotenv";
 
-module.exports = {
+dotenv.config();
+
+export default {
   solidity: "0.8.20",
   networks: {
     hardhat: {},
     abstractTestnet: {
-      url: "https://api.testnet.abs.xyz",  // Public RPC
+      url: "https://api.testnet.abs.xyz",
       chainId: 11124,
       accounts: process.env.PRIVATE_KEY ? [process.env.PRIVATE_KEY] : [],
     },
