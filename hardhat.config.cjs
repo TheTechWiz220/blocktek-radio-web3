@@ -1,9 +1,8 @@
-import "@nomicfoundation/hardhat-toolbox";
-import * as dotenv from "dotenv";
+// hardhat.config.cjs
+require("@nomicfoundation/hardhat-toolbox");
+require("dotenv").config();
 
-dotenv.config();
-
-export default {
+module.exports = {
   solidity: "0.8.20",
   networks: {
     hardhat: {},
