@@ -10,10 +10,8 @@ async function main() {
   const balance = await hre.ethers.provider.getBalance(deployer.address);
   console.log("Account balance:", hre.ethers.formatEther(balance), "ETH\n");
 
-  // Base URI for metadata (update with IPFS later)
-  const baseURI = "ipfs://YOUR_METADATA_CID/";
+  const baseURI = "ipfs://YOUR_METADATA_CID/";  // Update with IPFS later
 
-  // Deploy contract
   const DJPass = await hre.ethers.getContractFactory("DJPass");
   const djPass = await DJPass.deploy(baseURI);
   
@@ -21,7 +19,7 @@ async function main() {
   const contractAddress = await djPass.getAddress();
 
   console.log("✅ BlockTek DJ Pass deployed to:", contractAddress);
-  console.log("\n📝 Next steps:");
+  console.log("\nNext steps:");
   console.log("1. Update DJ_PASS_CONTRACT in Dashboard.tsx with:", contractAddress);
   console.log("2. Get test ETH from faucet and mint!");
 }
