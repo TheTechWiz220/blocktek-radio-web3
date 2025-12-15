@@ -5,8 +5,18 @@ import { useProfile } from "@/hooks/useProfile";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import {
-  Headphones, Trophy, Wallet, Settings, LogOut, Lock,
-  Mic, Send, Calendar, Users, Crown, User
+  Headphones,
+  Trophy,
+  Wallet,
+  Settings,
+  LogOut,
+  Lock,
+  Mic,
+  Send,
+  Calendar,
+  Users,
+  Crown,
+  User,
 } from "lucide-react";
 import Navigation from "@/components/Navigation";
 import { useState, useEffect } from "react";
@@ -15,7 +25,8 @@ import ProfileEditor from "@/components/ProfileEditor";
 import MintDJPass from "@/components/MintDJPass";
 import { useNavigate, Link } from "react-router-dom";
 
-const formatAddress = (addr: string) => `${addr.slice(0, 6)}...${addr.slice(-4)}`;
+const formatAddress = (addr: string) =>
+  `${addr.slice(0, 6)}...${addr.slice(-4)}`;
 
 const Dashboard = () => {
   const { user, signOut, loading: authLoading } = useAuth();
@@ -35,16 +46,35 @@ const Dashboard = () => {
   const [ethBalance, setEthBalance] = useState<string>("0.00");
   const [activeTab, setActiveTab] = useState<string>("overview");
 
-  // Load ETH balance
+  // Load ETH balance from current network
   useEffect(() => {
     const fetchBalance = async () => {
-      if (!account || !window.ethereum) return;
+      if (!account || !window.ethereum) {
+        setEthBalance("0.00");
+        return;
+      }
       try {
         const provider = new ethers.BrowserProvider(window.ethereum);
+        const network = await provider.getNetwork();
         const bal = await provider.getBalance(account);
-        setEthBalance(parseFloat(ethers.formatEther(bal)).toFixed(4));
+        const formatted = parseFloat(ethers.formatEther(bal)).toFixed(4);
+
+        // Detect network name
+        let networkName = "";
+        if (network.chainId === 11124n) networkName = "Abstract Testnet";
+        else if (network.chainId === 2741n) networkName = "Abstract";
+        else if (network.chainId === 11155111n) networkName = "Sepolia";
+        else if (network.chainId === 1n) networkName = "Ethereum";
+        else networkName = `Chain ${network.chainId}`;
+
+        setEthBalance(
+          `${formatted} ETH${
+            networkName !== "Ethereum" ? ` (${networkName})` : ""
+          }`
+        );
       } catch (e) {
-        console.error(e);
+        console.error("Balance fetch error:", e);
+        setEthBalance("Error");
       }
     };
     fetchBalance();
@@ -73,7 +103,9 @@ const Dashboard = () => {
         <Card className="p-8 text-center max-w-md w-full">
           <Lock className="w-16 h-16 mx-auto mb-4 text-muted-foreground" />
           <h2 className="text-2xl font-bold mb-2">Sign In Required</h2>
-          <p className="text-muted-foreground mb-6">Please sign in to access your dashboard.</p>
+          <p className="text-muted-foreground mb-6">
+            Please sign in to access your dashboard.
+          </p>
           <Link to="/auth">
             <Button className="w-full">Sign In</Button>
           </Link>
@@ -91,10 +123,15 @@ const Dashboard = () => {
             <Wallet className="w-16 h-16 mx-auto mb-4 text-muted-foreground" />
             <h2 className="text-2xl font-bold mb-2">Connect Wallet</h2>
             <p className="text-muted-foreground mb-6">
-              Connect your wallet for Web3 features like NFTs and crypto tracking.
+              Connect your wallet for Web3 features like NFTs and crypto
+              tracking.
             </p>
             <div className="space-y-3">
-              <Button onClick={connectWallet} disabled={isConnecting} className="w-full">
+              <Button
+                onClick={connectWallet}
+                disabled={isConnecting}
+                className="w-full"
+              >
                 {isConnecting ? "Connecting…" : "Connect Wallet"}
               </Button>
             </div>
@@ -122,7 +159,11 @@ const Dashboard = () => {
   ];
 
   const recentStreams = [
-    { title: "Crypto Market Updates", date: "Dec 10, 2025", duration: "1h 30m" },
+    {
+      title: "Crypto Market Updates",
+      date: "Dec 10, 2025",
+      duration: "1h 30m",
+    },
     { title: "Blockchain Morning Brief", date: "Dec 9, 2025", duration: "45m" },
     { title: "NFT Market Analysis", date: "Dec 8, 2025", duration: "1h" },
   ];
@@ -157,9 +198,15 @@ const Dashboard = () => {
           {/* Title + Name + Bio */}
           <div>
             <h1 className="text-5xl md:text-6xl font-bold bg-gradient-to-r from-purple-400 via-pink-400 to-blue-400 bg-clip-text text-transparent flex items-center justify-center gap-4">
-              {isDJ ? <Mic className="w-12 md:w-16 h-12 md:h-16" /> : <Headphones className="w-12 md:w-16 h-12 md:h-16" />}
+              {isDJ ? (
+                <Mic className="w-12 md:w-16 h-12 md:h-16" />
+              ) : (
+                <Headphones className="w-12 md:w-16 h-12 md:h-16" />
+              )}
               {isDJ ? "DJ Dashboard" : "Listener Dashboard"}
-              {isDJ && <Crown className="w-10 md:w-14 h-10 md:h-14 text-yellow-500" />}
+              {isDJ && (
+                <Crown className="w-10 md:w-14 h-10 md:h-14 text-yellow-500" />
+              )}
             </h1>
 
             <p className="text-xl md:text-2xl font-bold text-foreground mt-4">
@@ -213,7 +260,10 @@ const Dashboard = () => {
             {/* Stats Grid */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
               {stats.map((s, i) => (
-                <Card key={i} className="p-6 bg-card/50 backdrop-blur-sm border-primary/20">
+                <Card
+                  key={i}
+                  className="p-6 bg-card/50 backdrop-blur-sm border-primary/20"
+                >
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-sm text-muted-foreground">{s.label}</p>
@@ -235,12 +285,19 @@ const Dashboard = () => {
                 </h3>
                 <div className="space-y-4">
                   {recentStreams.map((stream, i) => (
-                    <div key={i} className="flex items-center justify-between p-3 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors">
+                    <div
+                      key={i}
+                      className="flex items-center justify-between p-3 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors"
+                    >
                       <div>
                         <p className="font-medium">{stream.title}</p>
-                        <p className="text-sm text-muted-foreground">{stream.date}</p>
+                        <p className="text-sm text-muted-foreground">
+                          {stream.date}
+                        </p>
                       </div>
-                      <span className="text-sm text-primary">{stream.duration}</span>
+                      <span className="text-sm text-primary">
+                        {stream.duration}
+                      </span>
                     </div>
                   ))}
                 </div>
@@ -257,7 +314,9 @@ const Dashboard = () => {
           <Card className="p-8 text-center">
             <Calendar className="w-16 h-16 mx-auto mb-4 text-primary" />
             <h3 className="text-xl font-bold mb-2">Schedule Management</h3>
-            <p className="text-muted-foreground">Manage your upcoming radio shows and events.</p>
+            <p className="text-muted-foreground">
+              Manage your upcoming radio shows and events.
+            </p>
           </Card>
         )}
 
@@ -265,7 +324,9 @@ const Dashboard = () => {
           <Card className="p-8 text-center">
             <Users className="w-16 h-16 mx-auto mb-4 text-primary" />
             <h3 className="text-xl font-bold mb-2">Audience Analytics</h3>
-            <p className="text-muted-foreground">View your listener stats and engagement metrics.</p>
+            <p className="text-muted-foreground">
+              View your listener stats and engagement metrics.
+            </p>
           </Card>
         )}
 
@@ -273,7 +334,9 @@ const Dashboard = () => {
           <Card className="p-8 text-center">
             <Send className="w-16 h-16 mx-auto mb-4 text-primary" />
             <h3 className="text-xl font-bold mb-2">Go Live</h3>
-            <p className="text-muted-foreground">Start your live broadcast and connect with your audience.</p>
+            <p className="text-muted-foreground">
+              Start your live broadcast and connect with your audience.
+            </p>
             <Button className="mt-6" size="lg">
               <Mic className="w-5 h-5 mr-2" />
               Start Broadcasting
