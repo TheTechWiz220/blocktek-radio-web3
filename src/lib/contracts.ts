@@ -4,10 +4,10 @@ import { ethers } from "ethers";
 // DJ PASS NFT CONTRACT CONFIGURATION
 // ============================================
 // Update this address after deploying to your target network
-export const DJ_PASS_ADDRESS = "0xYourDeployedDJPassAddress";
+export const DJ_PASS_ADDRESS = "0xdDE722c0Bd707b3774e70b9a72f7cf4f2ddc614C";
 
 // Mint price in ETH
-export const MINT_PRICE = "0.01";
+export const MINT_PRICE = "0.0001";
 export const MINT_PRICE_WEI = ethers.parseEther(MINT_PRICE);
 
 // Contract ABI (only the functions we need)
@@ -54,7 +54,9 @@ export const SUPPORTED_NETWORKS = {
 /**
  * Get DJ Pass contract instance
  */
-export function getDJPassContract(signerOrProvider: ethers.Signer | ethers.Provider) {
+export function getDJPassContract(
+  signerOrProvider: ethers.Signer | ethers.Provider
+) {
   return new ethers.Contract(DJ_PASS_ADDRESS, DJ_PASS_ABI, signerOrProvider);
 }
 

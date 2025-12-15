@@ -1,18 +1,15 @@
 require("@nomicfoundation/hardhat-toolbox");
 require("dotenv").config();
 
+/**
+ * Hardhat configuration (CommonJS).
+ * Ensure you have a .env file with ABSTRACT_RPC_URL and PRIVATE_KEY.
+ */
 module.exports = {
   solidity: "0.8.20",
   networks: {
-    hardhat: {},
     abstractTestnet: {
-      url: "https://api.testnet.abs.xyz",
-      chainId: 11124,
-      accounts: process.env.PRIVATE_KEY ? [process.env.PRIVATE_KEY] : [],
-    },
-    abstract: {
-      url: "https://api.abs.xyz",
-      chainId: 2741,
+      url: process.env.ABSTRACT_RPC_URL || "",
       accounts: process.env.PRIVATE_KEY ? [process.env.PRIVATE_KEY] : [],
     },
   },

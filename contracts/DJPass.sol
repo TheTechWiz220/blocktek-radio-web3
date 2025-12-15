@@ -8,7 +8,7 @@ import "@openzeppelin/contracts/utils/Strings.sol";
 contract DJPass is ERC721A, Ownable {
     using Strings for uint256;
 
-    uint256 public constant MINT_PRICE = 0.01 ether;
+    uint256 public constant MINT_PRICE = 0.001 ether;
     uint256 public constant MAX_SUPPLY = 1000;
     uint256 public constant MAX_PER_WALLET = 5;
 
@@ -55,7 +55,7 @@ contract DJPass is ERC721A, Ownable {
     function tokenURI(uint256 tokenId) public view override returns (string memory) {
         require(_exists(tokenId), "Token does not exist");
         string memory baseURI = _baseURI();
-        return bytes(baseURI).length > 0 
+        return bytes(baseURI).length > 0
             ? string(abi.encodePacked(baseURI, tokenId.toString(), ".json"))
             : "";
     }

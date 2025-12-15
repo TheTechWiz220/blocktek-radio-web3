@@ -340,8 +340,8 @@
       ]
     },
     "C:\\Users\\alpha\\Documents\\Web3\\blocktek-radio-web3\\contracts\\DJPass.sol": {
-      "lastModificationDate": 1765806616753,
-      "contentHash": "098fa369fac7d4c0f65a39d61cc4630a",
+      "lastModificationDate": 1765829110320,
+      "contentHash": "22c5733fffbcc47b21a7bd88f844d6f3",
       "sourceName": "contracts/DJPass.sol",
       "solcConfig": {
         "version": "0.8.20",

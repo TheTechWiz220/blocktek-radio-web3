@@ -1,4 +1,7 @@
 import hre from "hardhat";
+import dotenv from "dotenv";
+
+dotenv.config();
 
 async function main() {
   const [deployer] = await hre.ethers.getSigners();
@@ -6,7 +9,8 @@ async function main() {
   console.log("Deploying with account:", deployer.address);
 
   const DJPass = await hre.ethers.getContractFactory("DJPass");
-  const djPass = await DJPass.deploy();
+  const baseURI = process.env.BASE_URI || "https://example.com/metadata/";
+  const djPass = await DJPass.deploy(baseURI);
 
   await djPass.waitForDeployment();
 
