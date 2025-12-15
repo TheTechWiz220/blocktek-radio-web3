@@ -1,4 +1,3 @@
-// hardhat.config.cjs
 require("@nomicfoundation/hardhat-toolbox");
 require("dotenv").config();
 
