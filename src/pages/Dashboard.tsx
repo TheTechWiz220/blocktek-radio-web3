@@ -68,26 +68,22 @@ const Dashboard = () => {
 
   // Refresh on mount, account change, and network change
   useEffect(() => {
-    fetchBalance();
-
     if (!window.ethereum) return;
 
     const handleChainChanged = () => {
-      fetchBalance();
-      refreshDJStatus();
-    };
-
-    const handleAccountsChanged = () => {
+      // Suppress Vite HMR reload
+      if (import.meta.hot) {
+        import.meta.hot.accept();
+      }
+      // Refresh data
       fetchBalance();
       refreshDJStatus();
     };
 
     window.ethereum.on("chainChanged", handleChainChanged);
-    window.ethereum.on("accountsChanged", handleAccountsChanged);
 
     return () => {
       window.ethereum.removeListener("chainChanged", handleChainChanged);
-      window.ethereum.removeListener("accountsChanged", handleAccountsChanged);
     };
   }, [fetchBalance, refreshDJStatus]);
 
@@ -105,16 +101,23 @@ const Dashboard = () => {
     try {
       await window.ethereum.request({
         method: "wallet_switchEthereumChain",
-        params: [{ chainId: "0x2b74" }], // Abstract Testnet = 11124
+        params: [{ chainId: "0x2b58" }], // Abstract Testnet = 11124 in hex
       });
+      toast({
+        title: "Network switched",
+        description: "Connected to Abstract Testnet",
+      });
+      // Force balance refresh after switch
+      fetchBalance();
+      refreshDJStatus();
     } catch (switchError: any) {
-      if (switchError.code === 4902 || switchError.code === -32603) {
+      if (switchError.code === 4902) {
         try {
           await window.ethereum.request({
             method: "wallet_addEthereumChain",
             params: [
               {
-                chainId: "0x2b74",
+                chainId: "0x2b58",
                 chainName: "Abstract Testnet",
                 rpcUrls: ["https://api.testnet.abs.xyz"],
                 nativeCurrency: {
@@ -126,15 +129,25 @@ const Dashboard = () => {
               },
             ],
           });
+          toast({
+            title: "Network added",
+            description: "Now switch to Abstract Testnet",
+          });
+          fetchBalance();
+          refreshDJStatus();
         } catch (addError) {
           toast({
             title: "Failed to add network",
-            description: "Please add Abstract Testnet manually in MetaMask",
+            description: "Add Abstract Testnet manually in MetaMask",
             variant: "destructive",
           });
         }
       } else {
-        console.error("Network switch error:", switchError);
+        toast({
+          title: "Switch failed",
+          description: "Check MetaMask and try again",
+          variant: "destructive",
+        });
       }
     }
   };
