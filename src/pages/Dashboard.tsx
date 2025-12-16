@@ -42,29 +42,13 @@ const Dashboard = () => {
     isDJ,
     djLoading,
     refreshDJStatus,
+    balance,
+    refreshBalance,
   } = useWeb3();
 
   const { toast } = useToast();
 
-  const [ethBalance, setEthBalance] = useState<string>("0.00");
   const [activeTab, setActiveTab] = useState<string>("overview");
-
-  // Fetch balance from current network
-  const fetchBalance = useCallback(async () => {
-    if (!account || !window.ethereum) {
-      setEthBalance("0.00");
-      return;
-    }
-    try {
-      const provider = new ethers.BrowserProvider(window.ethereum);
-      const bal = await provider.getBalance(account);
-      const formatted = parseFloat(ethers.formatEther(bal)).toFixed(4);
-      setEthBalance(`${formatted} ETH`);
-    } catch (e) {
-      console.error("Balance fetch error:", e);
-      setEthBalance("Error");
-    }
-  }, [account]);
 
   // Refresh on mount, account change, and network change
   useEffect(() => {
@@ -76,7 +60,7 @@ const Dashboard = () => {
         import.meta.hot.accept();
       }
       // Refresh data
-      fetchBalance();
+      refreshBalance();
       refreshDJStatus();
     };
 
@@ -85,7 +69,7 @@ const Dashboard = () => {
     return () => {
       window.ethereum.removeListener("chainChanged", handleChainChanged);
     };
-  }, [fetchBalance, refreshDJStatus]);
+  }, [refreshBalance, refreshDJStatus]);
 
   // Switch to Abstract Testnet
   const switchToAbstract = async () => {
@@ -108,7 +92,7 @@ const Dashboard = () => {
         description: "Connected to Abstract Testnet",
       });
       // Force balance refresh after switch
-      fetchBalance();
+      refreshBalance();
       refreshDJStatus();
     } catch (switchError: any) {
       if (switchError.code === 4902) {
@@ -133,7 +117,7 @@ const Dashboard = () => {
             title: "Network added",
             description: "Now switch to Abstract Testnet",
           });
-          fetchBalance();
+          refreshBalance();
           refreshDJStatus();
         } catch (addError) {
           toast({
@@ -225,7 +209,7 @@ const Dashboard = () => {
   const stats = [
     { label: "Listening Time", value: "48h 12m", icon: Headphones },
     { label: "NFTs Owned", value: isDJ ? "1+" : "0", icon: Trophy },
-    { label: "ETH Balance", value: ethBalance, icon: Wallet },
+    { label: "ETH Balance", value: balance, icon: Wallet },
   ];
 
   const recentStreams = [

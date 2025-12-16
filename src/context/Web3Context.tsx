@@ -15,6 +15,8 @@ interface Web3ContextType {
   isDJ: boolean;
   djLoading: boolean;
   refreshDJStatus: () => Promise<void>;
+  balance: string;
+  refreshBalance: () => Promise<void>;
 }
 
 const Web3Context = createContext<Web3ContextType | undefined>(undefined);
@@ -25,6 +27,7 @@ export const Web3Provider = ({ children }: { children: ReactNode }) => {
   const [isConnecting, setIsConnecting] = useState(false);
   const [isDJ, setIsDJ] = useState(false);
   const [djLoading, setDjLoading] = useState(false);
+  const [balance, setBalance] = useState<string>("0.00");
   
   const TARGET_CHAIN = "0x1"; // Ethereum Mainnet
 
@@ -37,6 +40,26 @@ export const Web3Provider = ({ children }: { children: ReactNode }) => {
     }
     return injected;
   }, []);
+
+  const refreshBalance = useCallback(async () => {
+    if (!account) {
+      setBalance("0.00");
+      return;
+    }
+    
+    const selected = getInjectedProvider();
+    if (!selected) return;
+
+    try {
+      const provider = new ethers.BrowserProvider(selected as any);
+      const bal = await provider.getBalance(account);
+      const formatted = parseFloat(ethers.formatEther(bal)).toFixed(4);
+      setBalance(`${formatted} ETH`);
+    } catch (err) {
+      console.error("Failed to refresh balance:", err);
+      // Don't reset balance on error to avoid flickering if it's transient
+    }
+  }, [account, getInjectedProvider]);
 
   const checkDJStatus = useCallback(async (addr: string, provider: ethers.BrowserProvider) => {
     if (!isValidContractAddress(DJ_PASS_ADDRESS)) {
@@ -71,6 +94,11 @@ export const Web3Provider = ({ children }: { children: ReactNode }) => {
       console.error("Failed to refresh DJ status:", err);
     }
   }, [account, getInjectedProvider, checkDJStatus]);
+
+  // Refresh balance whenever DJ status is refreshed or account changes, effectively
+  useEffect(() => {
+    refreshBalance();
+  }, [refreshBalance]);
 
   const connectWallet = async () => {
     const selected = getInjectedProvider();
@@ -107,6 +135,7 @@ export const Web3Provider = ({ children }: { children: ReactNode }) => {
       }
 
       await checkDJStatus(address, provider);
+      // Balance will be refreshed by the effect since account changed
     } catch (err) {
       console.error("Wallet connection failed:", err);
     } finally {
@@ -118,6 +147,7 @@ export const Web3Provider = ({ children }: { children: ReactNode }) => {
     setAccount(null);
     setIsWrongNetwork(false);
     setIsDJ(false);
+    setBalance("0.00");
   };
 
   useEffect(() => {
@@ -130,9 +160,11 @@ export const Web3Provider = ({ children }: { children: ReactNode }) => {
         // Re-check DJ status when account changes
         const provider = new ethers.BrowserProvider(selected as any);
         checkDJStatus(accounts[0], provider);
+        // refreshBalance will trigger via effect dependency on account (inside refreshBalance)
       } else {
         setAccount(null);
         setIsDJ(false);
+        setBalance("0.00");
       }
     };
 
@@ -153,6 +185,7 @@ export const Web3Provider = ({ children }: { children: ReactNode }) => {
         if (accounts.length > 0) {
           setAccount(accounts[0].address);
           await checkDJStatus(accounts[0].address, provider);
+          // refreshBalance will trigger via effect
         }
       } catch (err) {
         console.log('Auto-connect skipped');
@@ -180,6 +213,8 @@ export const Web3Provider = ({ children }: { children: ReactNode }) => {
       isDJ,
       djLoading,
       refreshDJStatus,
+      balance,
+      refreshBalance,
     }}>
       {children}
     </Web3Context.Provider>
