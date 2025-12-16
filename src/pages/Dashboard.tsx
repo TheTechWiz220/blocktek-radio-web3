@@ -220,42 +220,44 @@ const Dashboard = () => {
             <Button variant="outline" onClick={handleSignOut} className="gap-2">
               <LogOut className="w-4 h-4" />
               <span className="hidden sm:inline">Sign Out</span>
-              <Button
-                variant="outline"
-                onClick={async () => {
-                  try {
-                    await window.ethereum.request({
-                      method: "wallet_switchEthereumChain",
-                      params: [{ chainId: "0x2b58" }], // Abstract Testnet chain ID 11124 in hex
-                    });
-                  } catch (switchError: any) {
-                    if (switchError.code === 4902) {
-                      // Network not added — add it
-                      await window.ethereum.request({
-                        method: "wallet_addEthereumChain",
-                        params: [
-                          {
-                            chainId: "0x2b58",
-                            chainName: "Abstract Testnet",
-                            rpcUrls: ["https://api.testnet.abs.xyz"],
-                            nativeCurrency: {
-                              name: "ETH",
-                              symbol: "ETH",
-                              decimals: 18,
-                            },
-                            blockExplorerUrls: ["https://explorer.testnet.abs.xyz"],
-                          },
-                        ],
-                      });
-                    }
-                  }
-                }}
-                className="gap-2"
-              >
-                <Wallet className="w-4 h-4" />
-                Switch to Abstract Testnet
-              </Button>
+            </Button>
           </div>
+          <Button
+            variant="outline"
+            onClick={async () => {
+              try {
+                await window.ethereum.request({
+                  method: "wallet_switchEthereumChain",
+                  params: [{ chainId: "0x2b58" }], // Abstract Testnet = 11124 in hex
+                });
+              } catch (switchError: any) {
+                if (switchError.code === 4902) {
+                  // Network not added — add it
+                  await window.ethereum.request({
+                    method: "wallet_addEthereumChain",
+                    params: [
+                      {
+                        chainId: "0x2b58",
+                        chainName: "Abstract Testnet",
+                        rpcUrls: ["https://api.testnet.abs.xyz"],
+                        nativeCurrency: {
+                          name: "ETH",
+                          symbol: "ETH",
+                          decimals: 18,
+                        },
+                        blockExplorerUrls: ["https://explorer.testnet.abs.xyz"],
+                      },
+                    ],
+                  });
+                }
+              }
+            }}
+            className="gap-2"
+          >
+            <Wallet className="w-4 h-4" />
+            <span className="hidden sm:inline">Switch to Abstract Testnet</span>
+            <span className="sm:hidden">Abstract Testnet</span>
+          </Button>
         </div>
 
         {/* DJ Tabs (only show if DJ) */}
