@@ -45,6 +45,7 @@ const Dashboard = () => {
     balance,
     refreshBalance,
     switchNetwork,
+    chainId,
   } = useWeb3();
 
   const { toast } = useToast();
@@ -233,6 +234,13 @@ const Dashboard = () => {
 
           {/* Action Buttons */}
           <div className="flex flex-wrap justify-center gap-4 mt-6">
+            <div className="flex items-center px-4 py-2 bg-secondary/50 rounded-lg border border-secondary">
+              <div className={`w-2 h-2 rounded-full mr-2 ${chainId === "0x2b74" ? "bg-green-500" : "bg-yellow-500"}`} />
+              <span className="text-sm font-medium">
+                {chainId === "0x2b74" ? "Abstract Testnet" : "Wrong Network"}
+              </span>
+            </div>
+
             <ProfileEditor onUpdated={fetchProfile} />
             <Button variant="outline" size="icon">
               <Settings className="w-5 h-5" />
@@ -242,18 +250,20 @@ const Dashboard = () => {
               <span className="hidden sm:inline">Sign Out</span>
             </Button>
 
-            {/* Network Switch Button */}
-            <Button
-              variant="outline"
-              onClick={handleSwitchToAbstract}
-              className="gap-2"
-            >
-              <Wallet className="w-4 h-4" />
-              <span className="hidden sm:inline">
-                Switch to Abstract Testnet
-              </span>
-              <span className="sm:hidden">Abstract Testnet</span>
-            </Button>
+            {/* Network Switch Button - Only show if on wrong network */}
+            {chainId !== "0x2b74" && (
+              <Button
+                variant="outline"
+                onClick={handleSwitchToAbstract}
+                className="gap-2 border-yellow-500/50 hover:bg-yellow-500/10"
+              >
+                <Wallet className="w-4 h-4" />
+                <span className="hidden sm:inline">
+                  Switch to Abstract Testnet
+                </span>
+                <span className="sm:hidden">Abstract Testnet</span>
+              </Button>
+            )}
           </div>
         </div>
 

@@ -107,6 +107,16 @@ export const Web3Provider = ({ children }: { children: ReactNode }) => {
     const selected = getInjectedProvider();
     if (!selected) return;
 
+    // Check if already on the target network to avoid unnecessary wallet popups/errors
+    const provider = new ethers.BrowserProvider(selected as any);
+    const network = await provider.getNetwork();
+    const currentChainId = "0x" + network.chainId.toString(16);
+
+    if (currentChainId === targetChainId) {
+      console.log("Already on target network:", targetChainId);
+      return;
+    }
+
     try {
       await selected.request({
         method: 'wallet_switchEthereumChain',
@@ -217,12 +227,13 @@ export const Web3Provider = ({ children }: { children: ReactNode }) => {
         if (accounts.length > 0) {
           setAccount(accounts[0].address);
           const network = await provider.getNetwork();
-          setChainId("0x" + network.chainId.toString(16));
+          const detectedChainId = "0x" + network.chainId.toString(16);
+          console.log("Auto-connect detected chain:", detectedChainId, "Network object:", network);
+          setChainId(detectedChainId);
           await checkDJStatus(accounts[0].address, provider);
-          // refreshBalance will trigger via effect
         }
       } catch (err) {
-        console.log('Auto-connect skipped');
+        console.log('Auto-connect skipped', err);
       }
     })();
 
