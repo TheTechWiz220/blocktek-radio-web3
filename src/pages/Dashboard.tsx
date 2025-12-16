@@ -46,7 +46,7 @@ const Dashboard = () => {
   const [ethBalance, setEthBalance] = useState<string>("0.00");
   const [activeTab, setActiveTab] = useState<string>("overview");
 
-  // Load ETH balance from current network (no double ETH)
+  // Load ETH balance from current network + refresh on network change
   useEffect(() => {
     const fetchBalance = async () => {
       if (!account || !window.ethereum) {
@@ -55,15 +55,32 @@ const Dashboard = () => {
       }
       try {
         const provider = new ethers.BrowserProvider(window.ethereum);
+        const network = await provider.getNetwork();
         const bal = await provider.getBalance(account);
         const formatted = parseFloat(ethers.formatEther(bal)).toFixed(4);
+
+        // Clean display — no double ETH
         setEthBalance(`${formatted} ETH`);
       } catch (e) {
-        console.error(e);
+        console.error("Balance fetch error:", e);
         setEthBalance("Error");
       }
     };
+
     fetchBalance();
+
+    // Listen for network/account changes
+    if (window.ethereum) {
+      window.ethereum.on("chainChanged", fetchBalance);
+      window.ethereum.on("accountsChanged", fetchBalance);
+    }
+
+    return () => {
+      if (window.ethereum) {
+        window.ethereum.removeListener("chainChanged", fetchBalance);
+        window.ethereum.removeListener("accountsChanged", fetchBalance);
+      }
+    };
   }, [account]);
 
   const handleSignOut = async () => {
@@ -222,36 +239,23 @@ const Dashboard = () => {
             </Button>
           </div>
           <Button
-            variant="outline"
             onClick={async () => {
               try {
                 await window.ethereum.request({
                   method: "wallet_switchEthereumChain",
-                  params: [{ chainId: "0x2b58" }], // Abstract Testnet = 11124 in hex
+                  params: [{ chainId: "0x2b58" }],
                 });
               } catch (switchError: any) {
                 if (switchError.code === 4902) {
-                  // Network not added — add it
                   await window.ethereum.request({
                     method: "wallet_addEthereumChain",
                     params: [
-                      {
-                        chainId: "0x2b58",
-                        chainName: "Abstract Testnet",
-                        rpcUrls: ["https://api.testnet.abs.xyz"],
-                        nativeCurrency: {
-                          name: "ETH",
-                          symbol: "ETH",
-                          decimals: 18,
-                        },
-                        blockExplorerUrls: ["https://explorer.testnet.abs.xyz"],
-                      },
+                      /* network config */
                     ],
                   });
                 }
               }
             }}
-            className="gap-2"
           >
             <Wallet className="w-4 h-4" />
             <span className="hidden sm:inline">Switch to Abstract Testnet</span>
