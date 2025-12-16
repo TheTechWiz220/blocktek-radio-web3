@@ -25,6 +25,15 @@ import ProfileEditor from "@/components/ProfileEditor";
 import MintDJPass from "@/components/MintDJPass";
 import { useNavigate, Link } from "react-router-dom";
 import { useToast } from "@/components/ui/use-toast";
+import { SUPPORTED_NETWORKS } from "@/lib/contracts";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 const formatAddress = (addr: string) =>
   `${addr.slice(0, 6)}...${addr.slice(-4)}`;
@@ -235,11 +244,36 @@ const Dashboard = () => {
           {/* Action Buttons */}
           <div className="flex flex-wrap justify-center gap-4 mt-6">
             <div className="flex items-center px-4 py-2 bg-secondary/50 rounded-lg border border-secondary">
-              <div className={`w-2 h-2 rounded-full mr-2 ${chainId === "0x2b74" ? "bg-green-500" : "bg-yellow-500"}`} />
+              <div
+                className={`w-2 h-2 rounded-full mr-2 ${chainId === "0x2b74" ? "bg-green-500" : "bg-yellow-500"
+                  }`}
+              />
               <span className="text-sm font-medium">
-                {chainId === "0x2b74" ? "Abstract Testnet" : "Wrong Network"}
+                {/* @ts-ignore */}
+                {chainId ? (SUPPORTED_NETWORKS[parseInt(chainId, 16)]?.name || "Unknown Network") : "Not Connected"}
               </span>
             </div>
+
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" className="gap-2">
+                  <Wallet className="w-4 h-4" />
+                  <span className="hidden sm:inline">Switch Network</span>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuLabel>Select Network</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                {Object.entries(SUPPORTED_NETWORKS).map(([id, net]: [string, any]) => (
+                  <DropdownMenuItem
+                    key={id}
+                    onClick={() => switchNetwork("0x" + parseInt(id).toString(16))}
+                  >
+                    {net.name}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
 
             <ProfileEditor onUpdated={fetchProfile} />
             <Button variant="outline" size="icon">
@@ -249,21 +283,6 @@ const Dashboard = () => {
               <LogOut className="w-4 h-4" />
               <span className="hidden sm:inline">Sign Out</span>
             </Button>
-
-            {/* Network Switch Button - Only show if on wrong network */}
-            {chainId !== "0x2b74" && (
-              <Button
-                variant="outline"
-                onClick={handleSwitchToAbstract}
-                className="gap-2 border-yellow-500/50 hover:bg-yellow-500/10"
-              >
-                <Wallet className="w-4 h-4" />
-                <span className="hidden sm:inline">
-                  Switch to Abstract Testnet
-                </span>
-                <span className="sm:hidden">Abstract Testnet</span>
-              </Button>
-            )}
           </div>
         </div>
 

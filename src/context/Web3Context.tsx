@@ -3,7 +3,7 @@
 
 import { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
 import { ethers } from 'ethers';
-import { DJ_PASS_ADDRESS, DJ_PASS_ABI, isValidContractAddress } from '@/lib/contracts';
+import { DJ_PASS_ADDRESS, DJ_PASS_ABI, isValidContractAddress, SUPPORTED_NETWORKS } from '@/lib/contracts';
 
 interface Web3ContextType {
   account: string | null;
@@ -31,8 +31,6 @@ export const Web3Provider = ({ children }: { children: ReactNode }) => {
   const [djLoading, setDjLoading] = useState(false);
   const [balance, setBalance] = useState<string>("0.00");
   const [chainId, setChainId] = useState<string | null>(null);
-
-  const TARGET_CHAIN = "0x1"; // Ethereum Mainnet
 
   const getInjectedProvider = useCallback(() => {
     const injected = (window as any).ethereum;
@@ -87,8 +85,17 @@ export const Web3Provider = ({ children }: { children: ReactNode }) => {
     setDjLoading(true);
     try {
       const contract = new ethers.Contract(DJ_PASS_ADDRESS, DJ_PASS_ABI, provider);
-      const balance = await contract.balanceOf(addr);
-      setIsDJ(Number(balance) > 0);
+
+      // Check chain first - only check DJ status on Abstract Testnet (where contract lives)
+      // or other supported chains where you might deploy it
+      const network = await provider.getNetwork();
+      // For now, assume DJ contract is only on Abstract Testnet (11124)
+      if (network.chainId === 11124n) {
+        const balance = await contract.balanceOf(addr);
+        setIsDJ(Number(balance) > 0);
+      } else {
+        setIsDJ(false);
+      }
     } catch (err) {
       console.error("DJ check failed:", err);
       setIsDJ(false);
@@ -130,35 +137,40 @@ export const Web3Provider = ({ children }: { children: ReactNode }) => {
       return;
     }
 
+    // Find network config
+    const chainIdDecimal = parseInt(targetChainId, 16);
+    // @ts-ignore
+    const networkConfig = SUPPORTED_NETWORKS[chainIdDecimal];
+
+
     try {
       await selected.request({
         method: 'wallet_switchEthereumChain',
         params: [{ chainId: targetChainId }],
       });
     } catch (switchError: any) {
-      if (switchError.code === 4902) {
-        if (targetChainId === "0x2b74") {
-          try {
-            await selected.request({
-              method: "wallet_addEthereumChain",
-              params: [
-                {
-                  chainId: "0x2b74",
-                  chainName: "Abstract Testnet",
-                  rpcUrls: ["https://api.testnet.abs.xyz"],
-                  nativeCurrency: {
-                    name: "ETH",
-                    symbol: "ETH",
-                    decimals: 18,
-                  },
-                  blockExplorerUrls: ["https://explorer.testnet.abs.xyz"],
+      // This error code indicates that the chain has not been added to MetaMask.
+      if (switchError.code === 4902 && networkConfig) {
+        try {
+          await selected.request({
+            method: "wallet_addEthereumChain",
+            params: [
+              {
+                chainId: targetChainId,
+                chainName: networkConfig.name,
+                rpcUrls: [networkConfig.rpcUrl],
+                nativeCurrency: {
+                  name: "ETH",
+                  symbol: "ETH",
+                  decimals: 18,
                 },
-              ],
-            });
-          } catch (addError) {
-            console.error("Failed to add network:", addError);
-            throw addError;
-          }
+                blockExplorerUrls: [networkConfig.explorer],
+              },
+            ],
+          });
+        } catch (addError) {
+          console.error("Failed to add network:", addError);
+          throw addError;
         }
       } else {
         throw switchError;
@@ -259,6 +271,17 @@ export const Web3Provider = ({ children }: { children: ReactNode }) => {
       }
     };
   }, [getInjectedProvider, checkDJStatus]);
+
+  useEffect(() => {
+    if (chainId) {
+      const chainIdDecimal = parseInt(chainId, 16);
+      // @ts-ignore
+      const isSupported = !!SUPPORTED_NETWORKS[chainIdDecimal];
+      setIsWrongNetwork(!isSupported);
+    } else {
+      setIsWrongNetwork(false);
+    }
+  }, [chainId]);
 
   return (
     <Web3Context.Provider value={{
