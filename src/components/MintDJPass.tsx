@@ -34,9 +34,9 @@ const MintDJPass = ({ onMintSuccess }: MintDJPassProps) => {
     }
 
     // Check Network (Abstract Testnet)
-    if (chainId !== "0x2b58") {
+    if (chainId !== "0x2b74") {
       try {
-        await switchNetwork("0x2b58");
+        await switchNetwork("0x2b74");
         // We return here because switchNetwork likely triggers page reload or state change. 
         // User will need to click Mint again after switch.
         return;

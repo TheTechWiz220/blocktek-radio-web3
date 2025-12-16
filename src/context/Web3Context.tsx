@@ -114,13 +114,13 @@ export const Web3Provider = ({ children }: { children: ReactNode }) => {
       });
     } catch (switchError: any) {
       if (switchError.code === 4902) {
-        if (targetChainId === "0x2b58") {
+        if (targetChainId === "0x2b74") {
           try {
             await selected.request({
               method: "wallet_addEthereumChain",
               params: [
                 {
-                  chainId: "0x2b58",
+                  chainId: "0x2b74",
                   chainName: "Abstract Testnet",
                   rpcUrls: ["https://api.testnet.abs.xyz"],
                   nativeCurrency: {

@@ -74,7 +74,7 @@ const Dashboard = () => {
 
   const handleSwitchToAbstract = async () => {
     try {
-      await switchNetwork("0x2b58");
+      await switchNetwork("0x2b74");
       toast({
         title: "Network Switch Request",
         description: "Please approve the network switch in your wallet.",
