@@ -39,8 +39,21 @@ export const Web3Provider = ({ children }: { children: ReactNode }) => {
     if (!injected) return null;
 
     if (injected.providers && Array.isArray(injected.providers)) {
+      // Prioritize "real" MetaMask (exclude Phantom which sets isMetaMask=true)
+      const realMetaMask = injected.providers.find((p: any) => p.isMetaMask && !p.isPhantom);
+      if (realMetaMask) {
+        console.log("Selected specific MetaMask provider");
+        return realMetaMask;
+      }
+
+      // Fallback
       return injected.providers.find((p: any) => p.isMetaMask) || injected.providers[0];
     }
+
+    if (injected.isPhantom && injected.isMetaMask) {
+      console.warn("Detected Phantom masquerading as MetaMask. This might cause conflicts.");
+    }
+
     return injected;
   }, []);
 
