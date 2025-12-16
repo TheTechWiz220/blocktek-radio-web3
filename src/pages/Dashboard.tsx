@@ -46,7 +46,7 @@ const Dashboard = () => {
   const [ethBalance, setEthBalance] = useState<string>("0.00");
   const [activeTab, setActiveTab] = useState<string>("overview");
 
-  // Load ETH balance from current network
+  // Load ETH balance from current network (no double ETH)
   useEffect(() => {
     const fetchBalance = async () => {
       if (!account || !window.ethereum) {
@@ -55,23 +55,10 @@ const Dashboard = () => {
       }
       try {
         const provider = new ethers.BrowserProvider(window.ethereum);
-        const network = await provider.getNetwork();
         const bal = await provider.getBalance(account);
         const formatted = parseFloat(ethers.formatEther(bal)).toFixed(4);
 
-        // Detect network name
-        let networkName = "";
-        if (network.chainId === 11124n) networkName = "Abstract Testnet";
-        else if (network.chainId === 2741n) networkName = "Abstract";
-        else if (network.chainId === 11155111n) networkName = "Sepolia";
-        else if (network.chainId === 1n) networkName = "Ethereum";
-        else networkName = `Chain ${network.chainId}`;
-
-        setEthBalance(
-          `${formatted} ETH${
-            networkName !== "Ethereum" ? ` (${networkName})` : ""
-          }`
-        );
+        setEthBalance(`${formatted} ETH`);
       } catch (e) {
         console.error("Balance fetch error:", e);
         setEthBalance("Error");
@@ -233,7 +220,41 @@ const Dashboard = () => {
             <Button variant="outline" onClick={handleSignOut} className="gap-2">
               <LogOut className="w-4 h-4" />
               <span className="hidden sm:inline">Sign Out</span>
-            </Button>
+              <Button
+                variant="outline"
+                onClick={async () => {
+                  try {
+                    await window.ethereum.request({
+                      method: "wallet_switchEthereumChain",
+                      params: [{ chainId: "0x2b58" }], // Abstract Testnet chain ID 11124 in hex
+                    });
+                  } catch (switchError: any) {
+                    if (switchError.code === 4902) {
+                      // Network not added — add it
+                      await window.ethereum.request({
+                        method: "wallet_addEthereumChain",
+                        params: [
+                          {
+                            chainId: "0x2b58",
+                            chainName: "Abstract Testnet",
+                            rpcUrls: ["https://api.testnet.abs.xyz"],
+                            nativeCurrency: {
+                              name: "ETH",
+                              symbol: "ETH",
+                              decimals: 18,
+                            },
+                            blockExplorerUrls: ["https://explorer.testnet.abs.xyz"],
+                          },
+                        ],
+                      });
+                    }
+                  }
+                }}
+                className="gap-2"
+              >
+                <Wallet className="w-4 h-4" />
+                Switch to Abstract Testnet
+              </Button>
           </div>
         </div>
 
