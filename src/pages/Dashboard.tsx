@@ -19,11 +19,12 @@ import {
   User,
 } from "lucide-react";
 import Navigation from "@/components/Navigation";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { ethers } from "ethers";
 import ProfileEditor from "@/components/ProfileEditor";
 import MintDJPass from "@/components/MintDJPass";
 import { useNavigate, Link } from "react-router-dom";
+import { useToast } from "@/components/ui/use-toast";
 
 const formatAddress = (addr: string) =>
   `${addr.slice(0, 6)}...${addr.slice(-4)}`;
@@ -43,45 +44,100 @@ const Dashboard = () => {
     refreshDJStatus,
   } = useWeb3();
 
+  const { toast } = useToast();
+
   const [ethBalance, setEthBalance] = useState<string>("0.00");
   const [activeTab, setActiveTab] = useState<string>("overview");
 
-  // Load ETH balance from current network + refresh on network change
+  // Fetch balance from current network
+  const fetchBalance = useCallback(async () => {
+    if (!account || !window.ethereum) {
+      setEthBalance("0.00");
+      return;
+    }
+    try {
+      const provider = new ethers.BrowserProvider(window.ethereum);
+      const bal = await provider.getBalance(account);
+      const formatted = parseFloat(ethers.formatEther(bal)).toFixed(4);
+      setEthBalance(`${formatted} ETH`);
+    } catch (e) {
+      console.error("Balance fetch error:", e);
+      setEthBalance("Error");
+    }
+  }, [account]);
+
+  // Refresh on mount, account change, and network change
   useEffect(() => {
-    const fetchBalance = async () => {
-      if (!account || !window.ethereum) {
-        setEthBalance("0.00");
-        return;
-      }
-      try {
-        const provider = new ethers.BrowserProvider(window.ethereum);
-        const network = await provider.getNetwork();
-        const bal = await provider.getBalance(account);
-        const formatted = parseFloat(ethers.formatEther(bal)).toFixed(4);
-
-        // Clean display — no double ETH
-        setEthBalance(`${formatted} ETH`);
-      } catch (e) {
-        console.error("Balance fetch error:", e);
-        setEthBalance("Error");
-      }
-    };
-
     fetchBalance();
 
-    // Listen for network/account changes
-    if (window.ethereum) {
-      window.ethereum.on("chainChanged", fetchBalance);
-      window.ethereum.on("accountsChanged", fetchBalance);
-    }
+    if (!window.ethereum) return;
+
+    const handleChainChanged = () => {
+      fetchBalance();
+      refreshDJStatus();
+    };
+
+    const handleAccountsChanged = () => {
+      fetchBalance();
+      refreshDJStatus();
+    };
+
+    window.ethereum.on("chainChanged", handleChainChanged);
+    window.ethereum.on("accountsChanged", handleAccountsChanged);
 
     return () => {
-      if (window.ethereum) {
-        window.ethereum.removeListener("chainChanged", fetchBalance);
-        window.ethereum.removeListener("accountsChanged", fetchBalance);
-      }
+      window.ethereum.removeListener("chainChanged", handleChainChanged);
+      window.ethereum.removeListener("accountsChanged", handleAccountsChanged);
     };
-  }, [account]);
+  }, [fetchBalance, refreshDJStatus]);
+
+  // Switch to Abstract Testnet
+  const switchToAbstract = async () => {
+    if (!window.ethereum) {
+      toast({
+        title: "Wallet not detected",
+        description: "Please install MetaMask",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      await window.ethereum.request({
+        method: "wallet_switchEthereumChain",
+        params: [{ chainId: "0x2b74" }], // Abstract Testnet = 11124
+      });
+    } catch (switchError: any) {
+      if (switchError.code === 4902 || switchError.code === -32603) {
+        try {
+          await window.ethereum.request({
+            method: "wallet_addEthereumChain",
+            params: [
+              {
+                chainId: "0x2b74",
+                chainName: "Abstract Testnet",
+                rpcUrls: ["https://api.testnet.abs.xyz"],
+                nativeCurrency: {
+                  name: "ETH",
+                  symbol: "ETH",
+                  decimals: 18,
+                },
+                blockExplorerUrls: ["https://explorer.testnet.abs.xyz"],
+              },
+            ],
+          });
+        } catch (addError) {
+          toast({
+            title: "Failed to add network",
+            description: "Please add Abstract Testnet manually in MetaMask",
+            variant: "destructive",
+          });
+        }
+      } else {
+        console.error("Network switch error:", switchError);
+      }
+    }
+  };
 
   const handleSignOut = async () => {
     await signOut();
@@ -129,15 +185,13 @@ const Dashboard = () => {
               Connect your wallet for Web3 features like NFTs and crypto
               tracking.
             </p>
-            <div className="space-y-3">
-              <Button
-                onClick={connectWallet}
-                disabled={isConnecting}
-                className="w-full"
-              >
-                {isConnecting ? "Connecting…" : "Connect Wallet"}
-              </Button>
-            </div>
+            <Button
+              onClick={connectWallet}
+              disabled={isConnecting}
+              className="w-full"
+            >
+              {isConnecting ? "Connecting…" : "Connect Wallet"}
+            </Button>
           </Card>
         </div>
       </div>
@@ -158,7 +212,7 @@ const Dashboard = () => {
   const stats = [
     { label: "Listening Time", value: "48h 12m", icon: Headphones },
     { label: "NFTs Owned", value: isDJ ? "1+" : "0", icon: Trophy },
-    { label: "ETH Balance", value: `${ethBalance} ETH`, icon: Wallet },
+    { label: "ETH Balance", value: ethBalance, icon: Wallet },
   ];
 
   const recentStreams = [
@@ -183,7 +237,7 @@ const Dashboard = () => {
       <Navigation />
 
       <div className="container mx-auto px-4 py-8 pt-24">
-        {/* Header */}
+        {/* TOP HEADER */}
         <div className="flex flex-col items-center justify-center text-center mb-12 gap-6">
           {/* Avatar */}
           {profile?.avatar_url ? (
@@ -228,7 +282,7 @@ const Dashboard = () => {
           </div>
 
           {/* Action Buttons */}
-          <div className="flex gap-4 mt-6">
+          <div className="flex flex-wrap justify-center gap-4 mt-6">
             <ProfileEditor onUpdated={fetchProfile} />
             <Button variant="outline" size="icon">
               <Settings className="w-5 h-5" />
@@ -237,54 +291,43 @@ const Dashboard = () => {
               <LogOut className="w-4 h-4" />
               <span className="hidden sm:inline">Sign Out</span>
             </Button>
+
+            {/* Network Switch Button */}
+            <Button
+              variant="outline"
+              onClick={switchToAbstract}
+              className="gap-2"
+            >
+              <Wallet className="w-4 h-4" />
+              <span className="hidden sm:inline">
+                Switch to Abstract Testnet
+              </span>
+              <span className="sm:hidden">Abstract Testnet</span>
+            </Button>
           </div>
-          <Button
-            onClick={async () => {
-              try {
-                await window.ethereum.request({
-                  method: "wallet_switchEthereumChain",
-                  params: [{ chainId: "0x2b58" }],
-                });
-              } catch (switchError: any) {
-                if (switchError.code === 4902) {
-                  await window.ethereum.request({
-                    method: "wallet_addEthereumChain",
-                    params: [
-                      /* network config */
-                    ],
-                  });
-                }
-              }
-            }}
-          >
-            <Wallet className="w-4 h-4" />
-            <span className="hidden sm:inline">Switch to Abstract Testnet</span>
-            <span className="sm:hidden">Abstract Testnet</span>
-          </Button>
         </div>
 
-        {/* DJ Tabs (only show if DJ) */}
+        {/* DJ Tabs */}
         {isDJ && (
-          <div className="flex justify-center gap-2 mb-8 flex-wrap">
+          <div className="flex justify-center gap-4 mb-8 flex-wrap">
             {djTabs.map((tab) => (
               <Button
                 key={tab.id}
-                variant={activeTab === tab.id ? "default" : "outline"}
+                variant={activeTab === tab.id ? "default" : "ghost"}
                 onClick={() => setActiveTab(tab.id)}
-                className="gap-2"
+                className="capitalize"
               >
-                <tab.icon className="w-4 h-4" />
+                <tab.icon className="w-4 h-4 mr-2" />
                 {tab.label}
               </Button>
             ))}
           </div>
         )}
 
-        {/* Content */}
+        {/* Overview Content */}
         {activeTab === "overview" && (
           <>
-            {/* Stats Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
               {stats.map((s, i) => (
                 <Card
                   key={i}
@@ -301,71 +344,62 @@ const Dashboard = () => {
               ))}
             </div>
 
-            {/* Main Grid */}
+            {/* Recent Streams + Mint Card */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* Recent Streams */}
               <Card className="p-6 bg-card/50 backdrop-blur-sm border-primary/20">
-                <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                  <Headphones className="w-5 h-5 text-primary" />
-                  Recent Streams
-                </h3>
-                <div className="space-y-4">
-                  {recentStreams.map((stream, i) => (
+                <h2 className="text-xl font-bold mb-4">Recent Streams</h2>
+                <div className="space-y-3">
+                  {recentStreams.map((s, i) => (
                     <div
                       key={i}
-                      className="flex items-center justify-between p-3 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors"
+                      className="flex items-center justify-between py-3 border-b border-border/50 last:border-0"
                     >
                       <div>
-                        <p className="font-medium">{stream.title}</p>
+                        <p className="font-medium">{s.title}</p>
                         <p className="text-sm text-muted-foreground">
-                          {stream.date}
+                          {s.date} • {s.duration}
                         </p>
                       </div>
-                      <span className="text-sm text-primary">
-                        {stream.duration}
-                      </span>
+                      <Button size="sm" variant="ghost">
+                        Replay
+                      </Button>
                     </div>
                   ))}
                 </div>
               </Card>
 
-              {/* DJ Pass Mint Card */}
               <MintDJPass onMintSuccess={refreshDJStatus} />
             </div>
           </>
         )}
 
-        {/* DJ-only tabs content */}
+        {/* DJ-only tabs */}
         {isDJ && activeTab === "schedule" && (
-          <Card className="p-8 text-center">
-            <Calendar className="w-16 h-16 mx-auto mb-4 text-primary" />
-            <h3 className="text-xl font-bold mb-2">Schedule Management</h3>
-            <p className="text-muted-foreground">
-              Manage your upcoming radio shows and events.
-            </p>
+          <Card className="p-6 bg-card/50 backdrop-blur-sm border-primary/20">
+            <h2 className="text-xl font-bold mb-4">Show Schedule</h2>
+            <Button className="gap-2">
+              <Calendar className="w-4 h-4" />
+              Add New Show
+            </Button>
           </Card>
         )}
 
         {isDJ && activeTab === "audience" && (
-          <Card className="p-8 text-center">
-            <Users className="w-16 h-16 mx-auto mb-4 text-primary" />
-            <h3 className="text-xl font-bold mb-2">Audience Analytics</h3>
-            <p className="text-muted-foreground">
-              View your listener stats and engagement metrics.
-            </p>
+          <Card className="p-6 bg-card/50 backdrop-blur-sm border-primary/20">
+            <h2 className="text-xl font-bold mb-4">Fan Leaderboard</h2>
+            <Button className="gap-2">
+              <Users className="w-4 h-4" />
+              Invite Fans
+            </Button>
           </Card>
         )}
 
         {isDJ && activeTab === "broadcast" && (
-          <Card className="p-8 text-center">
-            <Send className="w-16 h-16 mx-auto mb-4 text-primary" />
-            <h3 className="text-xl font-bold mb-2">Go Live</h3>
-            <p className="text-muted-foreground">
-              Start your live broadcast and connect with your audience.
-            </p>
-            <Button className="mt-6" size="lg">
-              <Mic className="w-5 h-5 mr-2" />
-              Start Broadcasting
+          <Card className="p-6 bg-card/50 backdrop-blur-sm border-primary/20">
+            <h2 className="text-xl font-bold mb-4">Tips & Earnings</h2>
+            <Button className="gap-2">
+              <Send className="w-4 h-4" />
+              Withdraw Earnings
             </Button>
           </Card>
         )}
