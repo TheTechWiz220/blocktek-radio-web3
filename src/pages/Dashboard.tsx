@@ -57,10 +57,9 @@ const Dashboard = () => {
         const provider = new ethers.BrowserProvider(window.ethereum);
         const bal = await provider.getBalance(account);
         const formatted = parseFloat(ethers.formatEther(bal)).toFixed(4);
-
         setEthBalance(`${formatted} ETH`);
       } catch (e) {
-        console.error("Balance fetch error:", e);
+        console.error(e);
         setEthBalance("Error");
       }
     };
