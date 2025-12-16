@@ -17,6 +17,8 @@ interface Web3ContextType {
   refreshDJStatus: () => Promise<void>;
   balance: string;
   refreshBalance: () => Promise<void>;
+  chainId: string | null;
+  switchNetwork: (chainId: string) => Promise<void>;
 }
 
 const Web3Context = createContext<Web3ContextType | undefined>(undefined);
@@ -28,13 +30,14 @@ export const Web3Provider = ({ children }: { children: ReactNode }) => {
   const [isDJ, setIsDJ] = useState(false);
   const [djLoading, setDjLoading] = useState(false);
   const [balance, setBalance] = useState<string>("0.00");
-  
+  const [chainId, setChainId] = useState<string | null>(null);
+
   const TARGET_CHAIN = "0x1"; // Ethereum Mainnet
 
   const getInjectedProvider = useCallback(() => {
     const injected = (window as any).ethereum;
     if (!injected) return null;
-    
+
     if (injected.providers && Array.isArray(injected.providers)) {
       return injected.providers.find((p: any) => p.isMetaMask) || injected.providers[0];
     }
@@ -46,7 +49,7 @@ export const Web3Provider = ({ children }: { children: ReactNode }) => {
       setBalance("0.00");
       return;
     }
-    
+
     const selected = getInjectedProvider();
     if (!selected) return;
 
@@ -83,10 +86,10 @@ export const Web3Provider = ({ children }: { children: ReactNode }) => {
 
   const refreshDJStatus = useCallback(async () => {
     if (!account) return;
-    
+
     const selected = getInjectedProvider();
     if (!selected) return;
-    
+
     try {
       const provider = new ethers.BrowserProvider(selected as any);
       await checkDJStatus(account, provider);
@@ -99,6 +102,46 @@ export const Web3Provider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     refreshBalance();
   }, [refreshBalance]);
+
+  const switchNetwork = async (targetChainId: string) => {
+    const selected = getInjectedProvider();
+    if (!selected) return;
+
+    try {
+      await selected.request({
+        method: 'wallet_switchEthereumChain',
+        params: [{ chainId: targetChainId }],
+      });
+    } catch (switchError: any) {
+      if (switchError.code === 4902) {
+        if (targetChainId === "0x2b58") {
+          try {
+            await selected.request({
+              method: "wallet_addEthereumChain",
+              params: [
+                {
+                  chainId: "0x2b58",
+                  chainName: "Abstract Testnet",
+                  rpcUrls: ["https://api.testnet.abs.xyz"],
+                  nativeCurrency: {
+                    name: "ETH",
+                    symbol: "ETH",
+                    decimals: 18,
+                  },
+                  blockExplorerUrls: ["https://explorer.testnet.abs.xyz"],
+                },
+              ],
+            });
+          } catch (addError) {
+            console.error("Failed to add network:", addError);
+            throw addError;
+          }
+        }
+      } else {
+        throw switchError;
+      }
+    }
+  };
 
   const connectWallet = async () => {
     const selected = getInjectedProvider();
@@ -117,25 +160,10 @@ export const Web3Provider = ({ children }: { children: ReactNode }) => {
       setAccount(address);
 
       const network = await provider.getNetwork();
-      const chainId = "0x" + network.chainId.toString(16);
-      
-      if (chainId !== TARGET_CHAIN) {
-        setIsWrongNetwork(true);
-        try {
-          await selected.request({ 
-            method: 'wallet_switchEthereumChain', 
-            params: [{ chainId: TARGET_CHAIN }] 
-          });
-          setIsWrongNetwork(false);
-        } catch (err: any) {
-          if (err.code === 4902) {
-            alert("Please add Ethereum Mainnet to MetaMask.");
-          }
-        }
-      }
+      const chainIdHex = "0x" + network.chainId.toString(16);
+      setChainId(chainIdHex);
 
       await checkDJStatus(address, provider);
-      // Balance will be refreshed by the effect since account changed
     } catch (err) {
       console.error("Wallet connection failed:", err);
     } finally {
@@ -168,7 +196,11 @@ export const Web3Provider = ({ children }: { children: ReactNode }) => {
       }
     };
 
-    const handleChainChanged = () => window.location.reload();
+    const handleChainChanged = (chainId: string) => {
+      // chainId comes as hex from buffer usually
+      setChainId(chainId);
+      window.location.reload();
+    };
 
     try {
       selected.on('accountsChanged', handleAccounts);
@@ -184,6 +216,8 @@ export const Web3Provider = ({ children }: { children: ReactNode }) => {
         const accounts = await provider.listAccounts();
         if (accounts.length > 0) {
           setAccount(accounts[0].address);
+          const network = await provider.getNetwork();
+          setChainId("0x" + network.chainId.toString(16));
           await checkDJStatus(accounts[0].address, provider);
           // refreshBalance will trigger via effect
         }
@@ -215,6 +249,8 @@ export const Web3Provider = ({ children }: { children: ReactNode }) => {
       refreshDJStatus,
       balance,
       refreshBalance,
+      chainId,
+      switchNetwork,
     }}>
       {children}
     </Web3Context.Provider>

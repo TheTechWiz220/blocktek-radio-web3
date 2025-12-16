@@ -44,6 +44,7 @@ const Dashboard = () => {
     refreshDJStatus,
     balance,
     refreshBalance,
+    switchNetwork,
   } = useWeb3();
 
   const { toast } = useToast();
@@ -71,68 +72,20 @@ const Dashboard = () => {
     };
   }, [refreshBalance, refreshDJStatus]);
 
-  // Switch to Abstract Testnet
-  const switchToAbstract = async () => {
-    if (!window.ethereum) {
-      toast({
-        title: "Wallet not detected",
-        description: "Please install MetaMask",
-        variant: "destructive",
-      });
-      return;
-    }
-
+  const handleSwitchToAbstract = async () => {
     try {
-      await window.ethereum.request({
-        method: "wallet_switchEthereumChain",
-        params: [{ chainId: "0x2b58" }], // Abstract Testnet = 11124 in hex
-      });
+      await switchNetwork("0x2b58");
       toast({
-        title: "Network switched",
-        description: "Connected to Abstract Testnet",
+        title: "Network Switch Request",
+        description: "Please approve the network switch in your wallet.",
       });
-      // Force balance refresh after switch
-      refreshBalance();
-      refreshDJStatus();
-    } catch (switchError: any) {
-      if (switchError.code === 4902) {
-        try {
-          await window.ethereum.request({
-            method: "wallet_addEthereumChain",
-            params: [
-              {
-                chainId: "0x2b58",
-                chainName: "Abstract Testnet",
-                rpcUrls: ["https://api.testnet.abs.xyz"],
-                nativeCurrency: {
-                  name: "ETH",
-                  symbol: "ETH",
-                  decimals: 18,
-                },
-                blockExplorerUrls: ["https://explorer.testnet.abs.xyz"],
-              },
-            ],
-          });
-          toast({
-            title: "Network added",
-            description: "Now switch to Abstract Testnet",
-          });
-          refreshBalance();
-          refreshDJStatus();
-        } catch (addError) {
-          toast({
-            title: "Failed to add network",
-            description: "Add Abstract Testnet manually in MetaMask",
-            variant: "destructive",
-          });
-        }
-      } else {
-        toast({
-          title: "Switch failed",
-          description: "Check MetaMask and try again",
-          variant: "destructive",
-        });
-      }
+    } catch (e) {
+      console.error("Failed to switch network:", e);
+      toast({
+        title: "Switch Failed",
+        description: "Could not switch to Abstract Testnet.",
+        variant: "destructive"
+      });
     }
   };
 
@@ -292,7 +245,7 @@ const Dashboard = () => {
             {/* Network Switch Button */}
             <Button
               variant="outline"
-              onClick={switchToAbstract}
+              onClick={handleSwitchToAbstract}
               className="gap-2"
             >
               <Wallet className="w-4 h-4" />

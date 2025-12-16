@@ -18,7 +18,7 @@ interface MintDJPassProps {
 }
 
 const MintDJPass = ({ onMintSuccess }: MintDJPassProps) => {
-  const { account, isDJ, refreshDJStatus } = useWeb3();
+  const { account, isDJ, refreshDJStatus, switchNetwork, chainId } = useWeb3();
   const { toast } = useToast();
   const [isMinting, setIsMinting] = useState(false);
   const [mintSuccess, setMintSuccess] = useState(false);
@@ -32,6 +32,24 @@ const MintDJPass = ({ onMintSuccess }: MintDJPassProps) => {
       });
       return;
     }
+
+    // Check Network (Abstract Testnet)
+    if (chainId !== "0x2b58") {
+      try {
+        await switchNetwork("0x2b58");
+        // We return here because switchNetwork likely triggers page reload or state change. 
+        // User will need to click Mint again after switch.
+        return;
+      } catch (e) {
+        toast({
+          title: "Wrong Network",
+          description: "Please switch to Abstract Testnet to mint.",
+          variant: "destructive",
+        });
+        return;
+      }
+    }
+
     if (!isValidContractAddress(DJ_PASS_ADDRESS)) {
       toast({
         title: "Contract not deployed",
