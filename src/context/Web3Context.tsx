@@ -35,25 +35,10 @@ export const Web3Provider = ({ children }: { children: ReactNode }) => {
   const getInjectedProvider = useCallback(() => {
     const injected = (window as any).ethereum;
     if (!injected) return null;
-
-    if (injected.providers && Array.isArray(injected.providers)) {
-      // Prioritize "real" MetaMask (exclude Phantom which sets isMetaMask=true)
-      const realMetaMask = injected.providers.find((p: any) => p.isMetaMask && !p.isPhantom);
-      if (realMetaMask) {
-        console.log("Selected specific MetaMask provider");
-        return realMetaMask;
-      }
-
-      // Fallback
-      return injected.providers.find((p: any) => p.isMetaMask) || injected.providers[0];
-    }
-
-    if (injected.isPhantom && injected.isMetaMask) {
-      console.warn("Detected Phantom masquerading as MetaMask. This might cause conflicts.");
-    }
-
     return injected;
   }, []);
+  // ...
+
 
   const refreshBalance = useCallback(async () => {
     if (!account) {
@@ -237,17 +222,10 @@ export const Web3Provider = ({ children }: { children: ReactNode }) => {
     const handleChainChanged = (newChainIdHex: string) => {
       // chainId comes as hex from buffer usually
       console.log("Chain changed event:", newChainIdHex);
-
-      // If we are already on this chain (e.g. from initial connect), don't reload
-      setChainId((prevChainId) => {
-        if (prevChainId === newChainIdHex) {
-          console.log("Chain ID unchanged, skipping reload");
-          return prevChainId;
-        }
-        // Force reload to sync state
-        window.location.reload();
-        return newChainIdHex;
-      });
+      setChainId(newChainIdHex);
+      // We do not reload the page, just let React state update components
+      // This prevents interrupting wallet interactions and feels smoother
+      refreshBalance();
     };
 
     try {
