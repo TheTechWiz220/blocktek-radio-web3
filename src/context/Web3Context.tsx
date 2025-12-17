@@ -1,9 +1,18 @@
 // src/context/Web3Context.tsx
 'use client';
 
-import { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
-import { ethers } from 'ethers';
-import { DJ_PASS_ADDRESS, DJ_PASS_ABI, isValidContractAddress, SUPPORTED_NETWORKS } from '@/lib/contracts';
+import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import {
+  useAccount,
+  useConnect,
+  useDisconnect,
+  useSwitchChain,
+  useBalance,
+  useReadContract
+} from 'wagmi';
+import { abstractTestnet } from '@/wagmi'; // Import from our config
+import { DJ_PASS_ADDRESS, DJ_PASS_ABI, isValidContractAddress } from '@/lib/contracts';
+
 
 interface Web3ContextType {
   account: string | null;
@@ -24,269 +33,114 @@ interface Web3ContextType {
 const Web3Context = createContext<Web3ContextType | undefined>(undefined);
 
 export const Web3Provider = ({ children }: { children: ReactNode }) => {
-  const [account, setAccount] = useState<string | null>(null);
+  const { address, isConnected, chain, isConnecting: isAccountConnecting } = useAccount();
+  const { connect, connectors, isPending: isConnectPending } = useConnect();
+  const { disconnect } = useDisconnect();
+  const { switchChainAsync } = useSwitchChain();
+
+  // Balance
+  const { data: balanceData, refetch: refetchBalance } = useBalance({
+    address: address,
+  });
+
+  // DJ Status state
+  const { data: djBalance, isLoading: djLoading, refetch: refetchDJ } = useReadContract({
+    address: DJ_PASS_ADDRESS as `0x${string}`,
+    abi: DJ_PASS_ABI,
+    functionName: 'balanceOf',
+    args: address ? [address] : undefined,
+    query: {
+      enabled: !!address && isValidContractAddress(DJ_PASS_ADDRESS)
+    }
+  });
+
+  const isDJ = !!(djBalance && Number(djBalance) > 0);
+
   const [isWrongNetwork, setIsWrongNetwork] = useState(false);
-  const [isConnecting, setIsConnecting] = useState(false);
-  const [isDJ, setIsDJ] = useState(false);
-  const [djLoading, setDjLoading] = useState(false);
-  const [balance, setBalance] = useState<string>("0.00");
-  const [chainId, setChainId] = useState<string | null>(null);
 
-  const getInjectedProvider = useCallback(() => {
-    const injected = (window as any).ethereum;
-    if (!injected) return null;
-    return injected;
-  }, []);
-  // ...
+  // Derived state
+  const account = address || null;
+  const isConnecting = isAccountConnecting || isConnectPending;
+  const chainId = chain ? "0x" + chain.id.toString(16) : null;
 
+  // Format balance
+  const formattedBalance = balanceData
+    ? parseFloat(ethers.formatEther(balanceData.value)).toFixed(4) + " " + balanceData.symbol
+    : "0.00 ETH";
 
-  const refreshBalance = useCallback(async () => {
-    if (!account) {
-      setBalance("0.00");
-      return;
-    }
-
-    const selected = getInjectedProvider();
-    if (!selected) return;
-
-    try {
-      const provider = new ethers.BrowserProvider(selected as any);
-      const bal = await provider.getBalance(account);
-      const formatted = parseFloat(ethers.formatEther(bal)).toFixed(4);
-      setBalance(`${formatted} ETH`);
-    } catch (err) {
-      console.error("Failed to refresh balance:", err);
-      // Don't reset balance on error to avoid flickering if it's transient
-    }
-  }, [account, getInjectedProvider]);
-
-  const checkDJStatus = useCallback(async (addr: string, provider: ethers.BrowserProvider) => {
-    if (!isValidContractAddress(DJ_PASS_ADDRESS)) {
-      console.log("DJ Pass contract not deployed yet");
-      setIsDJ(false);
-      return;
-    }
-
-    setDjLoading(true);
-    try {
-      const contract = new ethers.Contract(DJ_PASS_ADDRESS, DJ_PASS_ABI, provider);
-
-      // Check chain first - only check DJ status on Abstract Testnet (where contract lives)
-      // or other supported chains where you might deploy it
-      const network = await provider.getNetwork();
-      // For now, assume DJ contract is only on Abstract Testnet (11124)
-      if (network.chainId === 11124n) {
-        const balance = await contract.balanceOf(addr);
-        setIsDJ(Number(balance) > 0);
-      } else {
-        setIsDJ(false);
-      }
-    } catch (err) {
-      console.error("DJ check failed:", err);
-      setIsDJ(false);
-    } finally {
-      setDjLoading(false);
-    }
-  }, []);
-
-  const refreshDJStatus = useCallback(async () => {
-    if (!account) return;
-
-    const selected = getInjectedProvider();
-    if (!selected) return;
-
-    try {
-      const provider = new ethers.BrowserProvider(selected as any);
-      await checkDJStatus(account, provider);
-    } catch (err) {
-      console.error("Failed to refresh DJ status:", err);
-    }
-  }, [account, getInjectedProvider, checkDJStatus]);
-
-  // Refresh balance whenever DJ status is refreshed or account changes, effectively
+  // Check network - simplifying strict check
   useEffect(() => {
-    refreshBalance();
-  }, [refreshBalance]);
-
-  const switchNetwork = async (targetChainId: string) => {
-    const selected = getInjectedProvider();
-    if (!selected) return;
-
-    // Check if already on the target network to avoid unnecessary wallet popups/errors
-    const provider = new ethers.BrowserProvider(selected as any);
-    const network = await provider.getNetwork();
-    const currentChainId = "0x" + network.chainId.toString(16);
-
-    console.log(`Switching from ${currentChainId} to ${targetChainId}`);
-
-    if (currentChainId === targetChainId) {
-      console.log("Already on target network:", targetChainId);
-      return;
-    }
-
-    // Find network config
-    const chainIdDecimal = parseInt(targetChainId, 16);
-    // @ts-ignore
-    const networkConfig = SUPPORTED_NETWORKS[chainIdDecimal];
-
-
-    try {
-      console.log("Requesting wallet_switchEthereumChain...");
-      await selected.request({
-        method: 'wallet_switchEthereumChain',
-        params: [{ chainId: targetChainId }],
-      });
-    } catch (switchError: any) {
-      // This error code indicates that the chain has not been added to MetaMask.
-      if (switchError.code === 4902 && networkConfig) {
-        try {
-          await selected.request({
-            method: "wallet_addEthereumChain",
-            params: [
-              {
-                chainId: targetChainId,
-                chainName: networkConfig.name,
-                rpcUrls: [networkConfig.rpcUrl],
-                nativeCurrency: {
-                  name: "ETH",
-                  symbol: "ETH",
-                  decimals: 18,
-                },
-                blockExplorerUrls: [networkConfig.explorer],
-              },
-            ],
-          });
-        } catch (addError) {
-          console.error("Failed to add network:", addError);
-          throw addError;
-        }
-      } else {
-        throw switchError;
-      }
-    }
-  };
-
-  const connectWallet = async () => {
-    const selected = getInjectedProvider();
-    if (!selected) {
-      alert("Install MetaMask or another web3 wallet");
-      return;
-    }
-
-    setIsConnecting(true);
-    try {
-      await selected.request({ method: 'eth_requestAccounts' });
-
-      const provider = new ethers.BrowserProvider(selected as any);
-      const signer = await provider.getSigner();
-      const address = await signer.getAddress();
-      setAccount(address);
-
-      const network = await provider.getNetwork();
-      const chainIdHex = "0x" + network.chainId.toString(16);
-      setChainId(chainIdHex);
-
-      await checkDJStatus(address, provider);
-    } catch (err) {
-      console.error("Wallet connection failed:", err);
-    } finally {
-      setIsConnecting(false);
-    }
-  };
-
-  const disconnect = () => {
-    setAccount(null);
-    setIsWrongNetwork(false);
-    setIsDJ(false);
-    setBalance("0.00");
-  };
-
-  useEffect(() => {
-    const selected = getInjectedProvider();
-    if (!selected) return;
-
-    const handleAccounts = (accounts: string[]) => {
-      if (accounts[0]) {
-        setAccount(accounts[0]);
-        // Re-check DJ status when account changes
-        const provider = new ethers.BrowserProvider(selected as any);
-        checkDJStatus(accounts[0], provider);
-        // refreshBalance will trigger via effect dependency on account (inside refreshBalance)
-      } else {
-        setAccount(null);
-        setIsDJ(false);
-        setBalance("0.00");
-      }
-    };
-
-    const handleChainChanged = (newChainIdHex: string) => {
-      // chainId comes as hex from buffer usually
-      console.log("Chain changed event:", newChainIdHex);
-      setChainId(newChainIdHex);
-      // We do not reload the page, just let React state update components
-      // This prevents interrupting wallet interactions and feels smoother
-      refreshBalance();
-    };
-
-    try {
-      selected.on('accountsChanged', handleAccounts);
-      selected.on('chainChanged', handleChainChanged);
-    } catch (e) {
-      console.warn('Failed to attach provider listeners', e);
-    }
-
-    // Auto-connect if already authorized
-    (async () => {
-      try {
-        const provider = new ethers.BrowserProvider(selected as any);
-        const accounts = await provider.listAccounts();
-        if (accounts.length > 0) {
-          setAccount(accounts[0].address);
-          const network = await provider.getNetwork();
-          const detectedChainId = "0x" + network.chainId.toString(16);
-          console.log("Auto-connect detected chain:", detectedChainId, "Network object:", network);
-          setChainId(detectedChainId);
-          await checkDJStatus(accounts[0].address, provider);
-        }
-      } catch (err) {
-        console.log('Auto-connect skipped', err);
-      }
-    })();
-
-    return () => {
-      try {
-        selected.removeListener('accountsChanged', handleAccounts);
-        selected.removeListener('chainChanged', handleChainChanged);
-      } catch (e) {
-        // ignore
-      }
-    };
-  }, [getInjectedProvider, checkDJStatus]);
-
-  useEffect(() => {
-    if (chainId) {
-      const chainIdDecimal = parseInt(chainId, 16);
-      // @ts-ignore
-      const isSupported = !!SUPPORTED_NETWORKS[chainIdDecimal];
-      setIsWrongNetwork(!isSupported);
+    // Wagmi handles "unsupported" state internally usually, but for our UI flag:
+    // If we are connected and chain.id is not one of our configured chains, Wagmi might return chain as undefined or unsupported.
+    if (chain?.unsupported) {
+      setIsWrongNetwork(true);
     } else {
       setIsWrongNetwork(false);
     }
-  }, [chainId]);
+
+    // DEBUG: Log chain state
+    const checkProvider = async () => {
+      if (window.ethereum) {
+        const rawChainId = await window.ethereum.request({ method: 'eth_chainId' });
+        console.log("SYNC CHECK:", {
+          wagmiChainId: chain?.id,
+          wagmiChainName: chain?.name,
+          rawChainId: rawChainId,
+          match: chain?.id === parseInt(rawChainId, 16)
+        });
+      }
+    };
+    checkProvider();
+
+  }, [chain]);
+
+
+  const connectWallet = async () => {
+    // Default to first connector (usually Injected/MetaMask)
+    const connector = connectors[0];
+    if (connector) {
+      connect({ connector });
+    } else {
+      alert("No wallet connector found");
+    }
+  };
+
+  const switchNetwork = async (targetChainId: string) => {
+    // targetChainId is hex string, e.g. "0x2b74"
+    const chainIdDecimal = parseInt(targetChainId, 16);
+    console.log(`Attempting to switch network to decimal: ${chainIdDecimal} (Hex: ${targetChainId})`);
+
+    try {
+      if (!switchChainAsync) {
+        console.error("switchChainAsync is not defined. Wagmi hook issue?");
+        alert("Internal Error: Network switching not initialized.");
+        return;
+      }
+      await switchChainAsync({ chainId: chainIdDecimal });
+      console.log("Network switch successful or prompt open.");
+    } catch (error: any) {
+      console.error("Failed to switch network:", error);
+      alert(`Failed to switch network: ${error.message || "Unknown error"}`);
+    }
+  };
+
+  const handleDisconnect = () => {
+    disconnect();
+  };
 
   return (
     <Web3Context.Provider value={{
       account,
-      isConnected: !!account,
+      isConnected,
       isWrongNetwork,
       connectWallet,
-      disconnect,
+      disconnect: handleDisconnect,
       isConnecting,
       isDJ,
       djLoading,
-      refreshDJStatus,
-      balance,
-      refreshBalance,
+      refreshDJStatus: async () => { await refetchDJ() },
+      balance: formattedBalance,
+      refreshBalance: async () => { await refetchBalance() },
       chainId,
       switchNetwork,
     }}>

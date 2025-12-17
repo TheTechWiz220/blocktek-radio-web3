@@ -62,25 +62,12 @@ const Dashboard = () => {
   const [activeTab, setActiveTab] = useState<string>("overview");
 
   // Refresh on mount, account change, and network change
+  // Wagmi + Web3Context handles auto-refresh via hooks now.
+  // We can force data refresh if needed, but manual listeners are redundant and cause conflicts.
   useEffect(() => {
-    if (!window.ethereum) return;
-
-    const handleChainChanged = () => {
-      // Suppress Vite HMR reload
-      if (import.meta.hot) {
-        import.meta.hot.accept();
-      }
-      // Refresh data
-      refreshBalance();
-      refreshDJStatus();
-    };
-
-    window.ethereum.on("chainChanged", handleChainChanged);
-
-    return () => {
-      window.ethereum.removeListener("chainChanged", handleChainChanged);
-    };
-  }, [refreshBalance, refreshDJStatus]);
+    refreshBalance();
+    refreshDJStatus();
+  }, [refreshBalance, refreshDJStatus, chainId]);
 
   const handleSwitchToAbstract = async () => {
     try {
