@@ -132,6 +132,8 @@ export const Web3Provider = ({ children }: { children: ReactNode }) => {
     const network = await provider.getNetwork();
     const currentChainId = "0x" + network.chainId.toString(16);
 
+    console.log(`Switching from ${currentChainId} to ${targetChainId}`);
+
     if (currentChainId === targetChainId) {
       console.log("Already on target network:", targetChainId);
       return;
@@ -144,6 +146,7 @@ export const Web3Provider = ({ children }: { children: ReactNode }) => {
 
 
     try {
+      console.log("Requesting wallet_switchEthereumChain...");
       await selected.request({
         method: 'wallet_switchEthereumChain',
         params: [{ chainId: targetChainId }],
@@ -231,10 +234,20 @@ export const Web3Provider = ({ children }: { children: ReactNode }) => {
       }
     };
 
-    const handleChainChanged = (chainId: string) => {
+    const handleChainChanged = (newChainIdHex: string) => {
       // chainId comes as hex from buffer usually
-      setChainId(chainId);
-      window.location.reload();
+      console.log("Chain changed event:", newChainIdHex);
+
+      // If we are already on this chain (e.g. from initial connect), don't reload
+      setChainId((prevChainId) => {
+        if (prevChainId === newChainIdHex) {
+          console.log("Chain ID unchanged, skipping reload");
+          return prevChainId;
+        }
+        // Force reload to sync state
+        window.location.reload();
+        return newChainIdHex;
+      });
     };
 
     try {
