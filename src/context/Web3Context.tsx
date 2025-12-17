@@ -12,6 +12,7 @@ import {
 } from 'wagmi';
 import { abstractTestnet } from '@/wagmi'; // Import from our config
 import { DJ_PASS_ADDRESS, DJ_PASS_ABI, isValidContractAddress } from '@/lib/contracts';
+import { formatEther } from 'viem';
 
 
 interface Web3ContextType {
@@ -50,7 +51,8 @@ export const Web3Provider = ({ children }: { children: ReactNode }) => {
     functionName: 'balanceOf',
     args: address ? [address] : undefined,
     query: {
-      enabled: !!address && isValidContractAddress(DJ_PASS_ADDRESS)
+      // Only check DJ status if we are on Abstract Testnet (11124)
+      enabled: !!address && isValidContractAddress(DJ_PASS_ADDRESS) && chain?.id === 11124
     }
   });
 
@@ -65,7 +67,7 @@ export const Web3Provider = ({ children }: { children: ReactNode }) => {
 
   // Format balance
   const formattedBalance = balanceData
-    ? parseFloat(ethers.formatEther(balanceData.value)).toFixed(4) + " " + balanceData.symbol
+    ? Number(formatEther(balanceData.value)).toFixed(4) + " " + balanceData.symbol
     : "0.00 ETH";
 
   // Check network - simplifying strict check

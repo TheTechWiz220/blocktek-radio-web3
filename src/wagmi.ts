@@ -5,7 +5,7 @@ import { defineChain } from 'viem'
 
 export const abstractTestnet = defineChain({
     id: 11124,
-    name: 'Abstract Testnet',
+    name: 'Abstract Sepolia Testnet',
     nativeCurrency: {
         decimals: 18,
         name: 'ETH',
