@@ -71,7 +71,7 @@ const Dashboard = () => {
 
   const handleSwitchToAbstract = async () => {
     try {
-      await switchNetwork("0x2b74");
+      await switchNetwork(11124); // Updated to pass numeric chain ID directly
       toast({
         title: "Network Switch Request",
         description: "Please approve the network switch in your wallet.",
@@ -81,7 +81,7 @@ const Dashboard = () => {
       toast({
         title: "Switch Failed",
         description: "Could not switch to Abstract Testnet.",
-        variant: "destructive"
+        variant: "destructive",
       });
     }
   };
@@ -224,12 +224,16 @@ const Dashboard = () => {
           <div className="flex flex-wrap justify-center gap-4 mt-6">
             <div className="flex items-center px-4 py-2 bg-secondary/50 rounded-lg border border-secondary">
               <div
-                className={`w-2 h-2 rounded-full mr-2 ${chainId === "0x2b74" ? "bg-green-500" : "bg-yellow-500"
-                  }`}
+                className={`w-2 h-2 rounded-full mr-2 ${
+                  chainId === "0x2b74" ? "bg-green-500" : "bg-yellow-500"
+                }`}
               />
               <span className="text-sm font-medium">
                 {/* @ts-ignore */}
-                {chainId ? (SUPPORTED_NETWORKS[parseInt(chainId, 16)]?.name || "Unknown Network") : "Not Connected"}
+                {chainId
+                  ? SUPPORTED_NETWORKS[parseInt(chainId, 16)]?.name ||
+                    "Unknown Network"
+                  : "Not Connected"}
               </span>
             </div>
 
@@ -243,14 +247,16 @@ const Dashboard = () => {
               <DropdownMenuContent align="end">
                 <DropdownMenuLabel>Select Network</DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                {Object.entries(SUPPORTED_NETWORKS).map(([id, net]: [string, any]) => (
-                  <DropdownMenuItem
-                    key={id}
-                    onClick={() => switchNetwork("0x" + parseInt(id).toString(16))}
-                  >
-                    {net.name}
-                  </DropdownMenuItem>
-                ))}
+                {Object.entries(SUPPORTED_NETWORKS).map(
+                  ([id, net]: [string, any]) => (
+                    <DropdownMenuItem
+                      key={id}
+                      onClick={() => switchNetwork(parseInt(id, 10))} // Updated to pass numeric ID directly
+                    >
+                      {net.name}
+                    </DropdownMenuItem>
+                  )
+                )}
               </DropdownMenuContent>
             </DropdownMenu>
 

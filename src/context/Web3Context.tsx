@@ -11,10 +11,18 @@ import {
   useReadContract
 } from 'wagmi';
 import { abstractTestnet } from '@/wagmi'; // Import from our config
-import { DJ_PASS_ADDRESS, DJ_PASS_ABI, isValidContractAddress } from '@/lib/contracts';
+import { DJ_PASS_ADDRESS, DJ_PASS_ABI, isValidContractAddress, SUPPORTED_NETWORKS } from '@/lib/contracts';
 import { formatEther } from 'viem';
 
-
+/**
+ * Shape of the Web3 context used throughout the app.
+ *
+ * The `switchNetwork` method now accepts a **numeric** chain ID instead of a
+ * hex‑encoded string. Wagmi’s `switchChainAsync` works with a number and will
+ * automatically handle the `wallet_switchEthereumChain` / `wallet_addEthereumChain`
+ * flow. This eliminates the manual hex‑to‑decimal conversion that previously
+ * caused MetaMask to ignore the request for custom networks.
+ */
 interface Web3ContextType {
   account: string | null;
   isConnected: boolean;
@@ -27,8 +35,10 @@ interface Web3ContextType {
   refreshDJStatus: () => Promise<void>;
   balance: string;
   refreshBalance: () => Promise<void>;
+  /** Hex string representation of the current chain (e.g., "0x1"). */
   chainId: string | null;
-  switchNetwork: (chainId: string) => Promise<void>;
+  /** Switch to a new chain using its numeric ID. */
+  switchNetwork: (chainId: number) => Promise<void>;
 }
 
 const Web3Context = createContext<Web3ContextType | undefined>(undefined);
@@ -107,10 +117,8 @@ export const Web3Provider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  const switchNetwork = async (targetChainId: string) => {
-    // targetChainId is hex string, e.g. "0x2b74"
-    const chainIdDecimal = parseInt(targetChainId, 16);
-    console.log(`Attempting to switch network to decimal: ${chainIdDecimal} (Hex: ${targetChainId})`);
+  const switchNetwork = async (targetChainId: number) => {
+    console.log(`Attempting to switch network to chainId: ${targetChainId}`);
 
     try {
       if (!switchChainAsync) {
@@ -118,11 +126,43 @@ export const Web3Provider = ({ children }: { children: ReactNode }) => {
         alert("Internal Error: Network switching not initialized.");
         return;
       }
-      await switchChainAsync({ chainId: chainIdDecimal });
-      console.log("Network switch successful or prompt open.");
+      await switchChainAsync({ chainId: targetChainId });
+      console.log("Network switch request sent successfully.");
     } catch (error: any) {
-      console.error("Failed to switch network:", error);
-      alert(`Failed to switch network: ${error.message || "Unknown error"}`);
+      // MetaMask returns 4902 when the chain is unknown. Try adding it.
+      if (error?.shortMessage?.includes("4902") || error?.message?.includes("4902")) {
+        const network = SUPPORTED_NETWORKS[targetChainId];
+        if (!network) {
+          console.error(`Unknown network ID ${targetChainId} – can't add it`);
+          alert(`Network ${targetChainId} is not supported.`);
+          return;
+        }
+
+        const hex = "0x" + targetChainId.toString(16);
+        console.warn(`Chain ${targetChainId} not added – attempting wallet_addEthereumChain`);
+        try {
+          await (window.ethereum as any).request({
+            method: "wallet_addEthereumChain",
+            params: [
+              {
+                chainId: hex,
+                chainName: network.name,
+                rpcUrls: [network.rpcUrl],  // MetaMask expects an array of strings
+                nativeCurrency: { name: "ETH", symbol: "ETH", decimals: 18 },  // Assuming all are ETH-based; adjust if needed
+                blockExplorerUrls: [network.explorer],  // MetaMask expects an array of strings
+              },
+            ],
+          });
+          // After adding, ask MetaMask to switch again
+          await switchChainAsync({ chainId: targetChainId });
+        } catch (addErr: any) {
+          console.error("Failed to add/switch chain:", addErr);
+          alert(`Failed to add network: ${addErr?.message || "Unknown error"}`);
+        }
+      } else {
+        console.error("Failed to switch network:", error);
+        alert(`Failed to switch network: ${error?.message || "Unknown error"}`);
+      }
     }
   };
 
