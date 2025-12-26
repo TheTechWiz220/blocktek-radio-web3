@@ -1,8 +1,8 @@
 import { useState } from "react";
-import { useWriteContract, useAccount } from 'wagmi'
+import { useWriteContract, useAccount, useSwitchChain, useChainId } from 'wagmi'
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Crown, Loader2, Sparkles, CheckCircle2 } from "lucide-react";
+import { Crown, Loader2, Sparkles, CheckCircle2, AlertCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useWeb3 } from "@/context/Web3Context";
 import { abstractTestnet } from "@/wagmi";
@@ -19,12 +19,33 @@ interface MintDJPassProps {
 }
 
 const MintDJPass = ({ onMintSuccess }: MintDJPassProps) => {
-  const { account, isDJ, refreshDJStatus, switchNetwork, chainId } = useWeb3();
+  const { account, isDJ, refreshDJStatus } = useWeb3();
   const { address } = useAccount();
+  const currentChainId = useChainId();
+  const { switchChain, isPending: isSwitching } = useSwitchChain();
   const { toast } = useToast();
   const [mintSuccess, setMintSuccess] = useState(false);
+  const [showNetworkHelp, setShowNetworkHelp] = useState(false);
 
   const { writeContractAsync, isPending: isMinting } = useWriteContract();
+
+  const isOnCorrectNetwork = currentChainId === 11124;
+
+  const handleSwitchNetwork = async () => {
+    try {
+      await switchChain({ chainId: 11124 });
+      setShowNetworkHelp(false);
+    } catch (e: any) {
+      console.error("Network switch failed:", e);
+      // Show manual instructions if programmatic switch fails
+      setShowNetworkHelp(true);
+      toast({
+        title: "Manual Network Setup Required",
+        description: "Please add Abstract Testnet manually to your wallet.",
+        variant: "destructive",
+      });
+    }
+  };
 
   const handleMint = async () => {
     if (!account) {
@@ -37,18 +58,9 @@ const MintDJPass = ({ onMintSuccess }: MintDJPassProps) => {
     }
 
     // Check Network (Abstract Testnet - chain ID 11124)
-    if (chainId !== "0x2b74") {
-      try {
-        await switchNetwork(11124); // Pass numeric chain ID
-        return;
-      } catch (e) {
-        toast({
-          title: "Wrong Network",
-          description: "Please switch to Abstract Testnet to mint.",
-          variant: "destructive",
-        });
-        return;
-      }
+    if (!isOnCorrectNetwork) {
+      await handleSwitchNetwork();
+      return;
     }
 
     if (!isValidContractAddress(DJ_PASS_ADDRESS)) {
@@ -150,6 +162,34 @@ const MintDJPass = ({ onMintSuccess }: MintDJPassProps) => {
             </p>
           </div>
         </div>
+
+        {/* Network Warning */}
+        {!isOnCorrectNetwork && (
+          <div className="mb-4 p-3 rounded-lg bg-amber-500/20 border border-amber-500/30">
+            <div className="flex items-start gap-2">
+              <AlertCircle className="w-5 h-5 text-amber-400 flex-shrink-0 mt-0.5" />
+              <div className="text-sm">
+                <p className="font-medium text-amber-400">Wrong Network</p>
+                <p className="text-amber-300/80">Switch to Abstract Testnet to mint</p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Manual Network Instructions */}
+        {showNetworkHelp && (
+          <div className="mb-4 p-3 rounded-lg bg-blue-500/20 border border-blue-500/30 text-xs">
+            <p className="font-medium text-blue-400 mb-2">Add Network Manually:</p>
+            <div className="space-y-1 text-blue-300/80">
+              <p><strong>Network:</strong> Abstract Sepolia Testnet</p>
+              <p><strong>RPC:</strong> https://api.testnet.abs.xyz</p>
+              <p><strong>Chain ID:</strong> 11124</p>
+              <p><strong>Symbol:</strong> ETH</p>
+              <p><strong>Explorer:</strong> https://explorer.testnet.abs.xyz</p>
+            </div>
+          </div>
+        )}
+
         <div className="space-y-3 mb-5">
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <div className="w-1.5 h-1.5 rounded-full bg-purple-400" />
@@ -172,23 +212,44 @@ const MintDJPass = ({ onMintSuccess }: MintDJPassProps) => {
             Limited: 1,000 max
           </span>
         </div>
-        <Button
-          onClick={handleMint}
-          disabled={isMinting}
-          className="w-full h-12 text-base font-semibold bg-gradient-to-r from-purple-600 via-pink-600 to-blue-600 hover:from-purple-500 hover:via-pink-500 hover:to-blue-500 border-0 shadow-lg shadow-purple-500/25 hover:shadow-purple-500/40 transition-all duration-300"
-        >
-          {isMinting ? (
-            <>
-              <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-              Minting...
-            </>
-          ) : (
-            <>
-              <Crown className="w-5 h-5 mr-2" />
-              Mint DJ Pass
-            </>
-          )}
-        </Button>
+
+        {!isOnCorrectNetwork ? (
+          <Button
+            onClick={handleSwitchNetwork}
+            disabled={isSwitching}
+            className="w-full h-12 text-base font-semibold bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500 border-0 shadow-lg"
+          >
+            {isSwitching ? (
+              <>
+                <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                Switching Network...
+              </>
+            ) : (
+              <>
+                <AlertCircle className="w-5 h-5 mr-2" />
+                Switch to Abstract Testnet
+              </>
+            )}
+          </Button>
+        ) : (
+          <Button
+            onClick={handleMint}
+            disabled={isMinting}
+            className="w-full h-12 text-base font-semibold bg-gradient-to-r from-purple-600 via-pink-600 to-blue-600 hover:from-purple-500 hover:via-pink-500 hover:to-blue-500 border-0 shadow-lg shadow-purple-500/25 hover:shadow-purple-500/40 transition-all duration-300"
+          >
+            {isMinting ? (
+              <>
+                <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                Minting...
+              </>
+            ) : (
+              <>
+                <Crown className="w-5 h-5 mr-2" />
+                Mint DJ Pass
+              </>
+            )}
+          </Button>
+        )}
       </div>
     </Card>
   );
