@@ -107,8 +107,12 @@ export const Web3Provider = ({ children }: { children: ReactNode }) => {
 
 
   const connectWallet = async () => {
-    // Default to first connector (usually Injected/MetaMask)
-    const connector = connectors[0];
+    // Prefer MetaMask if present (prevents connecting to a different injected wallet)
+    const preferred = connectors.find(
+      (c) => (c as any).id === 'metaMask' || (c as any).type === 'metaMask'
+    );
+    const connector = preferred ?? connectors[0];
+
     if (connector) {
       connect({ connector });
     } else {
