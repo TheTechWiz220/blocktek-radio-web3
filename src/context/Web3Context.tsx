@@ -80,11 +80,10 @@ export const Web3Provider = ({ children }: { children: ReactNode }) => {
     ? Number(formatEther(balanceData.value)).toFixed(4) + " " + balanceData.symbol
     : "0.00 ETH";
 
-  // Check network - simplifying strict check
+  // Check network - wagmi v3 doesn't have chain.unsupported
+  // Instead, check if chain is undefined when connected (meaning unsupported chain)
   useEffect(() => {
-    // Wagmi handles "unsupported" state internally usually, but for our UI flag:
-    // If we are connected and chain.id is not one of our configured chains, Wagmi might return chain as undefined or unsupported.
-    if (chain?.unsupported) {
+    if (isConnected && !chain) {
       setIsWrongNetwork(true);
     } else {
       setIsWrongNetwork(false);
@@ -104,7 +103,7 @@ export const Web3Provider = ({ children }: { children: ReactNode }) => {
     };
     checkProvider();
 
-  }, [chain]);
+  }, [chain, isConnected]);
 
 
   const connectWallet = async () => {

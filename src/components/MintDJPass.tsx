@@ -1,11 +1,11 @@
 import { useState } from "react";
-import { useWriteContract } from 'wagmi'
+import { useWriteContract, useAccount } from 'wagmi'
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Crown, Loader2, Sparkles, CheckCircle2 } from "lucide-react";
-import { ethers } from "ethers";
 import { useToast } from "@/hooks/use-toast";
 import { useWeb3 } from "@/context/Web3Context";
+import { abstractTestnet } from "@/wagmi";
 import {
   DJ_PASS_ADDRESS,
   DJ_PASS_ABI,
@@ -20,6 +20,7 @@ interface MintDJPassProps {
 
 const MintDJPass = ({ onMintSuccess }: MintDJPassProps) => {
   const { account, isDJ, refreshDJStatus, switchNetwork, chainId } = useWeb3();
+  const { address } = useAccount();
   const { toast } = useToast();
   const [mintSuccess, setMintSuccess] = useState(false);
 
@@ -35,11 +36,10 @@ const MintDJPass = ({ onMintSuccess }: MintDJPassProps) => {
       return;
     }
 
-    // Check Network (Abstract Testnet)
-    // 0x2b74 is 11124 in hex
+    // Check Network (Abstract Testnet - chain ID 11124)
     if (chainId !== "0x2b74") {
       try {
-        await switchNetwork("0x2b74");
+        await switchNetwork(11124); // Pass numeric chain ID
         return;
       } catch (e) {
         toast({
@@ -65,8 +65,10 @@ const MintDJPass = ({ onMintSuccess }: MintDJPassProps) => {
         address: DJ_PASS_ADDRESS as `0x${string}`,
         abi: DJ_PASS_ABI,
         functionName: 'mint',
-        args: [1], // Quantity
+        args: [1n], // Quantity as bigint
         value: MINT_PRICE_WEI,
+        account: address,
+        chain: abstractTestnet,
       });
 
       toast({
