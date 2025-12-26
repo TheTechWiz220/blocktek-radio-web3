@@ -1,6 +1,6 @@
 import { http, createConfig } from 'wagmi'
 import { mainnet, sepolia } from 'wagmi/chains'
-import { injected } from 'wagmi/connectors'
+import { injected, metaMask } from 'wagmi/connectors'
 import { defineChain } from 'viem'
 
 export const abstractTestnet = defineChain({
@@ -38,6 +38,9 @@ export const abstractMainnet = defineChain({
 export const config = createConfig({
     chains: [abstractTestnet, abstractMainnet, mainnet, sepolia],
     connectors: [
+        // Prefer MetaMask explicitly so network switching prompts the correct wallet
+        metaMask(),
+        // Fallback for other injected wallets
         injected(),
     ],
     transports: {
