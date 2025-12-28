@@ -22,7 +22,7 @@ const MintDJPass = ({ onMintSuccess }: MintDJPassProps) => {
   const { account, isDJ, refreshDJStatus } = useWeb3();
   const { address } = useAccount();
   const currentChainId = useChainId();
-  const { switchChain, isPending: isSwitching } = useSwitchChain();
+  const { switchChainAsync, isPending: isSwitching } = useSwitchChain();
   const { toast } = useToast();
   const [mintSuccess, setMintSuccess] = useState(false);
   const [showNetworkHelp, setShowNetworkHelp] = useState(false);
@@ -33,7 +33,7 @@ const MintDJPass = ({ onMintSuccess }: MintDJPassProps) => {
 
   const handleSwitchNetwork = async () => {
     try {
-      await switchChain({ chainId: 11124 });
+      await switchChainAsync({ chainId: 11124 });
       setShowNetworkHelp(false);
     } catch (e: any) {
       console.error("Network switch failed:", e);

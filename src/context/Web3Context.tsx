@@ -45,7 +45,7 @@ const Web3Context = createContext<Web3ContextType | undefined>(undefined);
 
 export const Web3Provider = ({ children }: { children: ReactNode }) => {
   const { address, isConnected, chain, isConnecting: isAccountConnecting } = useAccount();
-  const { connect, connectors, isPending: isConnectPending } = useConnect();
+  const { connectAsync, connectors, isPending: isConnectPending } = useConnect();
   const { disconnect } = useDisconnect();
   const { switchChainAsync } = useSwitchChain();
 
@@ -89,16 +89,20 @@ export const Web3Provider = ({ children }: { children: ReactNode }) => {
       setIsWrongNetwork(false);
     }
 
-    // DEBUG: Log chain state
+    // DEBUG: Log chain state (never throw)
     const checkProvider = async () => {
-      if (window.ethereum) {
-        const rawChainId = await window.ethereum.request({ method: 'eth_chainId' });
-        console.log("SYNC CHECK:", {
-          wagmiChainId: chain?.id,
-          wagmiChainName: chain?.name,
-          rawChainId: rawChainId,
-          match: chain?.id === parseInt(rawChainId, 16)
-        });
+      try {
+        if (window.ethereum?.request) {
+          const rawChainId = await window.ethereum.request({ method: 'eth_chainId' });
+          console.log("SYNC CHECK:", {
+            wagmiChainId: chain?.id,
+            wagmiChainName: chain?.name,
+            rawChainId: rawChainId,
+            match: chain?.id === parseInt(rawChainId, 16)
+          });
+        }
+      } catch {
+        // ignore
       }
     };
     checkProvider();
@@ -107,16 +111,20 @@ export const Web3Provider = ({ children }: { children: ReactNode }) => {
 
 
   const connectWallet = async () => {
-    // Prefer MetaMask if present (prevents connecting to a different injected wallet)
-    const preferred = connectors.find(
-      (c) => (c as any).id === 'metaMask' || (c as any).type === 'metaMask'
-    );
+    // Prefer MetaMask-targeted injected connector when present
+    const preferred = connectors.find((c) => (c as any).id === 'metaMask');
     const connector = preferred ?? connectors[0];
 
-    if (connector) {
-      connect({ connector });
-    } else {
+    if (!connector) {
       alert("No wallet connector found");
+      return;
+    }
+
+    try {
+      await connectAsync({ connector });
+    } catch (e: any) {
+      console.error('Wallet connect failed:', e);
+      alert(e?.shortMessage || e?.message || 'Failed to connect wallet');
     }
   };
 
